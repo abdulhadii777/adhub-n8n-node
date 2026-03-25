@@ -18,15 +18,23 @@ async function handleLeads(
 	const leadMobileNumber = ctx.getNodeParameter('leadMobileNumber', itemIndex, '') as string;
 	const leadStatusId = ctx.getNodeParameter('leadStatusId', itemIndex, '') as string;
 	const leadSourceId = ctx.getNodeParameter('leadSourceId', itemIndex, '') as string;
-	const leadIncludeEmpty = ctx.getNodeParameter('leadIncludeEmpty', itemIndex, false) as boolean;
+	const leadOwnerId = ctx.getNodeParameter('leadOwnerId', itemIndex, '') as string;
+	const leadTagIdsParam = ctx.getNodeParameter('leadTagIds', itemIndex, {}) as {
+		values?: Array<{ value?: string }>;
+	};
+	const leadCompany = ctx.getNodeParameter('leadCompany', itemIndex, '') as string;
+	const leadJobTitle = ctx.getNodeParameter('leadJobTitle', itemIndex, '') as string;
+	const leadServiceInterest = ctx.getNodeParameter('leadServiceInterest', itemIndex, '') as string;
+	const leadMonthlyBudget = ctx.getNodeParameter('leadMonthlyBudget', itemIndex, '') as string;
+	const leadTimeline = ctx.getNodeParameter('leadTimeline', itemIndex, '') as string;
+	const leadInternalNotes = ctx.getNodeParameter('leadInternalNotes', itemIndex, '') as string;
+	const leadUpdatedAt = ctx.getNodeParameter('leadUpdatedAt', itemIndex, '') as string;
+	const leadIncludeEmpty = ctx.getNodeParameter('leadIncludeEmpty', itemIndex, true) as boolean;
 	const leadAdditionalFieldsRaw = ctx.getNodeParameter('leadAdditionalFields', itemIndex, '') as string;
+	const leadTimelineLimit = ctx.getNodeParameter('leadTimelineLimit', itemIndex, 0) as number;
+	const leadEntriesLimit = ctx.getNodeParameter('leadEntriesLimit', itemIndex, 0) as number;
 	const operationsUsingJsonBody = new Set([
 		'listLeads',
-		'bulkCreateLeads',
-		'bulkDeleteLeads',
-		'bulkUpdateLeadFields',
-		'bulkSyncLeadTags',
-		'bulkUpdateLeadCustomFields',
 	]);
 
 	let method: 'GET' | 'POST' | 'PUT' | 'DELETE';
@@ -43,31 +51,6 @@ async function handleLeads(
 		case 'listLeads':
 			method = 'POST';
 			endpoint = '/leads/list';
-			includeBody = true;
-			break;
-		case 'bulkCreateLeads':
-			method = 'POST';
-			endpoint = '/leads/bulk';
-			includeBody = true;
-			break;
-		case 'bulkDeleteLeads':
-			method = 'DELETE';
-			endpoint = '/leads/bulk';
-			includeBody = true;
-			break;
-		case 'bulkUpdateLeadFields':
-			method = 'POST';
-			endpoint = '/leads/bulk/fields';
-			includeBody = true;
-			break;
-		case 'bulkSyncLeadTags':
-			method = 'POST';
-			endpoint = '/leads/bulk/tags';
-			includeBody = true;
-			break;
-		case 'bulkUpdateLeadCustomFields':
-			method = 'POST';
-			endpoint = '/leads/bulk/custom-fields';
 			includeBody = true;
 			break;
 		case 'createLead':
@@ -91,10 +74,12 @@ async function handleLeads(
 		case 'getLeadTimeline':
 			method = 'GET';
 			endpoint = `/leads/${leadId}/timeline`;
+			if (leadTimelineLimit) qs.limit = leadTimelineLimit;
 			break;
 		case 'listLeadEntries':
 			method = 'GET';
 			endpoint = `/leads/${leadId}/entries`;
+			if (leadEntriesLimit) qs.limit = leadEntriesLimit;
 			break;
 		default:
 			throw new Error(`Unsupported operation for Leads ${operation}`);
@@ -112,6 +97,21 @@ async function handleLeads(
 			if (leadIncludeEmpty || leadMobileNumber) formBody.mobile_number = leadMobileNumber;
 			if (leadIncludeEmpty || leadStatusId) formBody.status_id = leadStatusId;
 			if (leadIncludeEmpty || leadSourceId) formBody.source_id = leadSourceId;
+			if (leadIncludeEmpty || leadOwnerId) formBody.owner_id = leadOwnerId;
+			if (leadIncludeEmpty || leadCompany) formBody.company = leadCompany;
+			if (leadIncludeEmpty || leadJobTitle) formBody.job_title = leadJobTitle;
+			if (leadIncludeEmpty || leadServiceInterest) formBody.service_interest = leadServiceInterest;
+			if (leadIncludeEmpty || leadMonthlyBudget) formBody.monthly_budget = leadMonthlyBudget;
+			if (leadIncludeEmpty || leadTimeline) formBody.timeline = leadTimeline;
+			if (leadIncludeEmpty || leadInternalNotes) formBody.internal_notes = leadInternalNotes;
+			if (leadUpdatedAt) formBody.updated_at = leadUpdatedAt;
+
+			if (leadTagIdsParam?.values?.length) {
+				const tagIds = leadTagIdsParam.values
+					.map((entry) => (entry?.value ?? '').toString().trim())
+					.filter((entry) => entry.length > 0);
+				if (tagIds.length) formBody.tag_ids = tagIds;
+			}
 
 			const extraFields = parseJson(leadAdditionalFieldsRaw, 'Additional Fields');
 			for (const [key, value] of Object.entries(extraFields)) {

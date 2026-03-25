@@ -118,11 +118,6 @@ export class AdhubApp implements INodeType {
 					},
 				},
 				options: [
-					{ name: 'Bulk Create', value: 'bulkCreateLeads', action: 'Leads bulk create' },
-					{ name: 'Bulk Delete', value: 'bulkDeleteLeads', action: 'Leads bulk delete' },
-					{ name: 'Bulk Sync Tags', value: 'bulkSyncLeadTags', action: 'Leads bulk sync tags' },
-					{ name: 'Bulk Update Custom Fields', value: 'bulkUpdateLeadCustomFields', action: 'Leads bulk update custom fields' },
-					{ name: 'Bulk Update Fields', value: 'bulkUpdateLeadFields', action: 'Leads bulk update fields' },
 					{ name: 'Create', value: 'createLead', action: 'Leads create' },
 					{ name: 'Delete', value: 'deleteLead', action: 'Leads delete' },
 					{ name: 'Entries', value: 'listLeadEntries', action: 'Leads entries' },
@@ -345,9 +340,48 @@ export class AdhubApp implements INodeType {
 				description: 'Maximum number of notes to return (1-100). Set 0 to omit.',
 			},
 			{
+				displayName: 'Limit',
+				name: 'leadTimelineLimit',
+				type: 'number',
+				typeOptions: {
+					minValue: 0,
+					maxValue: 100,
+				},
+				default: 0,
+				displayOptions: {
+					show: {
+						resource: ['leads'],
+						operation: ['getLeadTimeline'],
+					},
+				},
+				description: 'Maximum number of timeline items to return (1-100). Set 0 to omit.',
+			},
+			{
+				displayName: 'Limit',
+				name: 'leadEntriesLimit',
+				type: 'number',
+				typeOptions: {
+					minValue: 0,
+					maxValue: 100,
+				},
+				default: 0,
+				displayOptions: {
+					show: {
+						resource: ['leads'],
+						operation: ['listLeadEntries'],
+					},
+				},
+				description: 'Maximum number of entries to return (1-100). Set 0 to omit.',
+			},
+			{
 				displayName: 'Context',
 				name: 'queryContext',
-				type: 'string',
+				type: 'options',
+				options: [
+					{ name: 'Lead Assignment', value: 'lead.assignment' },
+					{ name: 'Lead List', value: 'lead.list' },
+					{ name: 'Task List', value: 'task.list' },
+				],
 				default: 'lead.list',
 				required: true,
 				displayOptions: {
@@ -356,7 +390,7 @@ export class AdhubApp implements INodeType {
 						operation: ['listLeadQueryFields'],
 					},
 				},
-				description: 'Context key like lead.list, lead.assignment, task.list',
+				description: 'Context key for query builder fields',
 			},
 			{
 				displayName: 'Body Type',
@@ -399,80 +433,6 @@ export class AdhubApp implements INodeType {
 					show: {
 						resource: ['leads'],
 						operation: ['listLeads'],
-					},
-				},
-			},
-			{
-				displayName: 'Body (JSON)',
-				name: 'body',
-				type: 'string',
-				default: '',
-				placeholder:
-					'{"leads":[{"first_name":"Jane","last_name":"Doe","email":"jane.doe@example.com","mobile_number":null,"status_id":"550e8400-e29b-41d4-a716-446655440000","source_id":null,"owner_id":null,"tag_ids":[]}]}',
-				description: 'Request body as a JSON object',
-				displayOptions: {
-					show: {
-						resource: ['leads'],
-						operation: ['bulkCreateLeads'],
-					},
-				},
-			},
-			{
-				displayName: 'Body (JSON)',
-				name: 'body',
-				type: 'string',
-				default: '',
-				placeholder: '{"lead_ids":["0190c6e2-e4b0-7c83-a6f9-5e3c9b2a4f10"],"filter":[]}',
-				description: 'Request body as a JSON object',
-				displayOptions: {
-					show: {
-						resource: ['leads'],
-						operation: ['bulkDeleteLeads'],
-					},
-				},
-			},
-			{
-				displayName: 'Body (JSON)',
-				name: 'body',
-				type: 'string',
-				default: '',
-				placeholder:
-					'{"lead_ids":["0190c6e2-e4b0-7c83-a6f9-5e3c9b2a4f10"],"filter":{"mode":"and","rules":[{"field":"email","operator":"Contains","value":"@example.com"},{"field":"status","operator":"Equals To","value":"New"}]},"status_id":1,"source_id":2,"owner_id":3}',
-				description: 'Request body as a JSON object',
-				displayOptions: {
-					show: {
-						resource: ['leads'],
-						operation: ['bulkUpdateLeadFields'],
-					},
-				},
-			},
-			{
-				displayName: 'Body (JSON)',
-				name: 'body',
-				type: 'string',
-				default: '',
-				placeholder:
-					'{"lead_ids":["0190c6e2-e4b0-7c83-a6f9-5e3c9b2a4f10"],"filter":[],"add_tag_ids":[1,2],"remove_tag_ids":[3]}',
-				description: 'Request body as a JSON object',
-				displayOptions: {
-					show: {
-						resource: ['leads'],
-						operation: ['bulkSyncLeadTags'],
-					},
-				},
-			},
-			{
-				displayName: 'Body (JSON)',
-				name: 'body',
-				type: 'string',
-				default: '',
-				placeholder:
-					'{"lead_ids":["0190c6e2-e4b0-7c83-a6f9-5e3c9b2a4f10"],"filter":[],"company":"n","job_title":"g","service_interest":"Content Marketing","monthly_budget":"$5k+","timeline":"This quarter","internal_notes":"z"}',
-				description: 'Request body as a JSON object',
-				displayOptions: {
-					show: {
-						resource: ['leads'],
-						operation: ['bulkUpdateLeadCustomFields'],
 					},
 				},
 			},
@@ -922,6 +882,144 @@ export class AdhubApp implements INodeType {
 						leadBodyType: ['form'],
 					},
 				},
+			},
+			{
+				displayName: 'Owner ID',
+				name: 'leadOwnerId',
+				type: 'string',
+				default: '',
+				displayOptions: {
+					show: {
+						resource: ['leads'],
+						operation: ['createLead', 'updateLead'],
+						leadBodyType: ['form'],
+					},
+				},
+			},
+			{
+				displayName: 'Tag IDs',
+				name: 'leadTagIds',
+				type: 'fixedCollection',
+				typeOptions: {
+					multipleValues: true,
+				},
+				default: {},
+				placeholder: 'Add tag ID',
+				options: [
+					{
+						name: 'values',
+						displayName: 'Tag',
+						values: [
+							{
+								displayName: 'Tag ID',
+								name: 'value',
+								type: 'string',
+								default: '',
+							},
+						],
+					},
+				],
+				displayOptions: {
+					show: {
+						resource: ['leads'],
+						operation: ['createLead', 'updateLead'],
+						leadBodyType: ['form'],
+					},
+				},
+				description: 'Tags to assign to the lead',
+			},
+			{
+				displayName: 'Company',
+				name: 'leadCompany',
+				type: 'string',
+				default: '',
+				displayOptions: {
+					show: {
+						resource: ['leads'],
+						operation: ['createLead', 'updateLead'],
+						leadBodyType: ['form'],
+					},
+				},
+			},
+			{
+				displayName: 'Job Title',
+				name: 'leadJobTitle',
+				type: 'string',
+				default: '',
+				displayOptions: {
+					show: {
+						resource: ['leads'],
+						operation: ['createLead', 'updateLead'],
+						leadBodyType: ['form'],
+					},
+				},
+			},
+			{
+				displayName: 'Service Interest',
+				name: 'leadServiceInterest',
+				type: 'string',
+				default: '',
+				displayOptions: {
+					show: {
+						resource: ['leads'],
+						operation: ['createLead', 'updateLead'],
+						leadBodyType: ['form'],
+					},
+				},
+			},
+			{
+				displayName: 'Monthly Budget',
+				name: 'leadMonthlyBudget',
+				type: 'string',
+				default: '',
+				displayOptions: {
+					show: {
+						resource: ['leads'],
+						operation: ['createLead', 'updateLead'],
+						leadBodyType: ['form'],
+					},
+				},
+			},
+			{
+				displayName: 'Timeline',
+				name: 'leadTimeline',
+				type: 'string',
+				default: '',
+				displayOptions: {
+					show: {
+						resource: ['leads'],
+						operation: ['createLead', 'updateLead'],
+						leadBodyType: ['form'],
+					},
+				},
+			},
+			{
+				displayName: 'Internal Notes',
+				name: 'leadInternalNotes',
+				type: 'string',
+				default: '',
+				displayOptions: {
+					show: {
+						resource: ['leads'],
+						operation: ['createLead', 'updateLead'],
+						leadBodyType: ['form'],
+					},
+				},
+			},
+			{
+				displayName: 'Updated At',
+				name: 'leadUpdatedAt',
+				type: 'string',
+				default: '',
+				placeholder: '2026-03-18T00:30:24+00:00',
+				displayOptions: {
+					show: {
+						resource: ['leads'],
+						operation: ['updateLead'],
+						leadBodyType: ['form'],
+					},
+				},
+				description: 'ISO 8601 timestamp with timezone',
 			},
 			{
 				displayName: 'Include Empty Fields',
