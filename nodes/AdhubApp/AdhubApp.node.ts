@@ -1,28 +1,9 @@
-import type {
-	IExecuteFunctions,
-	INodeExecutionData,
-	INodeType,
-	INodeTypeDescription,
-	IHttpRequestOptions,
-	IHttpRequestMethods,
-	IDataObject,
-} from 'n8n-workflow';
+import type { IExecuteFunctions, INodeExecutionData, INodeType, INodeTypeDescription } from 'n8n-workflow';
+import { NodeOperationError } from 'n8n-workflow';
 
-type JsonRecord = IDataObject;
-
-function parseJson(value: string | undefined, fieldName: string): JsonRecord {
-	if (!value) return {};
-	try {
-		const parsed = JSON.parse(value);
-		if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) return parsed as JsonRecord;
-		throw new Error(`${fieldName} must be a JSON object`);
-	} catch (error) {
-		const message = error instanceof Error ? error.message : String(error);
-		throw new Error(`Invalid JSON in "${fieldName}": ${message}`);
-	}
-}
-
-const BASE_URL = 'https://adhub-main-d1fcap.laravel.cloud/api/v1';
+import { handleLeadSources } from './resources/leadSources';
+import { handleLeadStatuses } from './resources/leadStatuses';
+import { handleLeads } from './resources/leads';
 
 export class AdhubApp implements INodeType {
 	description: INodeTypeDescription = {
@@ -34,9 +15,10 @@ export class AdhubApp implements INodeType {
 		defaults: {
 			name: 'Adhub App',
 		},
-		icon: 'file:android-icon-144.png',
+		icon: 'file:android-icon-144.svg',
 		inputs: ['main'],
 		outputs: ['main'],
+		usableAsTool: true,
 		credentials: [
 			{
 				name: 'adhubAppApi',
@@ -55,6 +37,7 @@ export class AdhubApp implements INodeType {
 				],
 				default: 'leadSources',
 				required: true,
+				noDataExpression: true,
 			},
 			{
 				displayName: 'Operation',
@@ -67,13 +50,14 @@ export class AdhubApp implements INodeType {
 					},
 				},
 				options: [
-					{ name: 'List', value: 'listLeadSources', action: 'Lead Sources List' },
-					{ name: 'Create', value: 'createLeadSource', action: 'Lead Sources Create' },
-					{ name: 'Get', value: 'getLeadSource', action: 'Lead Sources Get' },
-					{ name: 'Update', value: 'updateLeadSource', action: 'Lead Sources Update' },
-					{ name: 'Delete', value: 'deleteLeadSource', action: 'Lead Sources Delete' },
+					{ name: 'Create', value: 'createLeadSource', action: 'Lead sources create' },
+					{ name: 'Delete', value: 'deleteLeadSource', action: 'Lead sources delete' },
+					{ name: 'Get', value: 'getLeadSource', action: 'Lead sources get' },
+					{ name: 'List', value: 'listLeadSources', action: 'Lead sources list' },
+					{ name: 'Update', value: 'updateLeadSource', action: 'Lead sources update' },
 				],
 				default: 'listLeadSources',
+				noDataExpression: true,
 			},
 			{
 				displayName: 'Operation',
@@ -86,13 +70,14 @@ export class AdhubApp implements INodeType {
 					},
 				},
 				options: [
-					{ name: 'List', value: 'listLeadStatuses', action: 'Lead Statuses List' },
-					{ name: 'Create', value: 'createLeadStatus', action: 'Lead Statuses Create' },
-					{ name: 'Get', value: 'getLeadStatus', action: 'Lead Statuses Get' },
-					{ name: 'Update', value: 'updateLeadStatus', action: 'Lead Statuses Update' },
-					{ name: 'Delete', value: 'deleteLeadStatus', action: 'Lead Statuses Delete' },
+					{ name: 'Create', value: 'createLeadStatus', action: 'Lead statuses create' },
+					{ name: 'Delete', value: 'deleteLeadStatus', action: 'Lead statuses delete' },
+					{ name: 'Get', value: 'getLeadStatus', action: 'Lead statuses get' },
+					{ name: 'List', value: 'listLeadStatuses', action: 'Lead statuses list' },
+					{ name: 'Update', value: 'updateLeadStatus', action: 'Lead statuses update' },
 				],
 				default: 'listLeadStatuses',
+				noDataExpression: true,
 			},
 			{
 				displayName: 'Operation',
@@ -105,16 +90,17 @@ export class AdhubApp implements INodeType {
 					},
 				},
 				options: [
-					{ name: 'List', value: 'listLeads', action: 'Leads List' },
-					{ name: 'Create', value: 'createLead', action: 'Leads Create' },
-					{ name: 'Get', value: 'getLead', action: 'Leads Get' },
-					{ name: 'Update', value: 'updateLead', action: 'Leads Update' },
-					{ name: 'Delete', value: 'deleteLead', action: 'Leads Delete' },
-					{ name: 'List Query Fields', value: 'listLeadQueryFields', action: 'Leads Query Fields' },
-					{ name: 'Timeline', value: 'getLeadTimeline', action: 'Leads Timeline' },
-					{ name: 'Entries', value: 'listLeadEntries', action: 'Leads Entries' },
+					{ name: 'Create', value: 'createLead', action: 'Leads create' },
+					{ name: 'Delete', value: 'deleteLead', action: 'Leads delete' },
+					{ name: 'Entries', value: 'listLeadEntries', action: 'Leads entries' },
+					{ name: 'Get', value: 'getLead', action: 'Leads get' },
+					{ name: 'List', value: 'listLeads', action: 'Leads list' },
+					{ name: 'List Query Fields', value: 'listLeadQueryFields', action: 'Leads list query fields' },
+					{ name: 'Timeline', value: 'getLeadTimeline', action: 'Leads timeline' },
+					{ name: 'Update', value: 'updateLead', action: 'Leads update' },
 				],
 				default: 'listLeads',
+				noDataExpression: true,
 			},
 			{
 				displayName: 'Source ID',
@@ -204,10 +190,7 @@ export class AdhubApp implements INodeType {
 				displayOptions: {
 					show: {
 						resource: ['leadSources'],
-						operation: [
-							'createLeadSource',
-							'updateLeadSource',
-						],
+						operation: ['createLeadSource', 'updateLeadSource'],
 					},
 				},
 			},
@@ -354,7 +337,7 @@ export class AdhubApp implements INodeType {
 				name: 'leadIncludeEmpty',
 				type: 'boolean',
 				default: true,
-				description: 'Send empty strings for blank fields instead of omitting them',
+				description: 'Whether to send empty strings for blank fields instead of omitting them',
 				displayOptions: {
 					show: {
 						resource: ['leads'],
@@ -395,7 +378,7 @@ export class AdhubApp implements INodeType {
 			{
 				displayName: 'Color',
 				name: 'statusColor',
-				type: 'string',
+				type: 'color',
 				default: '',
 				placeholder: '#22c55e',
 				displayOptions: {
@@ -430,177 +413,23 @@ export class AdhubApp implements INodeType {
 		for (let itemIndex = 0; itemIndex < items.length; itemIndex++) {
 			const resource = this.getNodeParameter('resource', itemIndex) as string;
 			const operation = this.getNodeParameter('operation', itemIndex) as string;
-			const sourceId = this.getNodeParameter('sourceId', itemIndex, '') as string;
-			const bodyRaw = this.getNodeParameter('body', itemIndex, '') as string;
-			const statusId = this.getNodeParameter('statusId', itemIndex, '') as string;
-			const leadId = this.getNodeParameter('leadId', itemIndex, '') as string;
-			const queryContext = this.getNodeParameter('queryContext', itemIndex, '') as string;
-			const statusBodyType = this.getNodeParameter('statusBodyType', itemIndex, 'form') as string;
-			const statusName = this.getNodeParameter('statusName', itemIndex, '') as string;
-			const statusColor = this.getNodeParameter('statusColor', itemIndex, '') as string;
-			const statusIsProtected = this.getNodeParameter('statusIsProtected', itemIndex, false) as boolean;
-			const statusBodyRaw = this.getNodeParameter('statusBody', itemIndex, '') as string;
-			const leadBodyType = this.getNodeParameter('leadBodyType', itemIndex, 'form') as string;
-			const leadFirstName = this.getNodeParameter('leadFirstName', itemIndex, '') as string;
-			const leadLastName = this.getNodeParameter('leadLastName', itemIndex, '') as string;
-			const leadEmail = this.getNodeParameter('leadEmail', itemIndex, '') as string;
-			const leadMobileNumber = this.getNodeParameter('leadMobileNumber', itemIndex, '') as string;
-			const leadStatusId = this.getNodeParameter('leadStatusId', itemIndex, '') as string;
-			const leadSourceId = this.getNodeParameter('leadSourceId', itemIndex, '') as string;
-			const leadIncludeEmpty = this.getNodeParameter('leadIncludeEmpty', itemIndex, false) as boolean;
-			const leadAdditionalFieldsRaw = this.getNodeParameter(
-				'leadAdditionalFields',
-				itemIndex,
-				'',
-			) as string;
 
 			const credentials = await this.getCredentials('adhubAppApi', itemIndex);
 			const apiToken = credentials.apiToken as string;
 
-			let httpMethod: IHttpRequestMethods;
-			let endpointPath: string;
-			let includeBody = false;
-			const qs: JsonRecord = {};
-
-			if (resource === 'leadSources') {
-				switch (operation) {
-					case 'listLeadSources':
-						httpMethod = 'GET';
-						endpointPath = '/lead-sources';
-						break;
-					case 'createLeadSource':
-						httpMethod = 'POST';
-						endpointPath = '/lead-sources';
-						includeBody = true;
-						break;
-					case 'getLeadSource':
-						httpMethod = 'GET';
-						endpointPath = `/lead-sources/${sourceId}`;
-						break;
-					case 'updateLeadSource':
-						httpMethod = 'PUT';
-						endpointPath = `/lead-sources/${sourceId}`;
-						includeBody = true;
-						break;
-					case 'deleteLeadSource':
-						httpMethod = 'DELETE';
-						endpointPath = `/lead-sources/${sourceId}`;
-						break;
-					default:
-						throw new Error(`Unsupported operation for Lead Sources ${operation}`);
-				}
-			} else if (resource === 'leadStatuses') {
-				switch (operation) {
-					case 'listLeadStatuses':
-						httpMethod = 'GET';
-						endpointPath = '/lead-statuses';
-						break;
-					case 'createLeadStatus':
-						httpMethod = 'POST';
-						endpointPath = '/lead-statuses';
-						includeBody = true;
-						break;
-					case 'getLeadStatus':
-						httpMethod = 'GET';
-						endpointPath = `/lead-statuses/${statusId}`;
-						break;
-					case 'updateLeadStatus':
-						httpMethod = 'PUT';
-						endpointPath = `/lead-statuses/${statusId}`;
-						includeBody = true;
-						break;
-					case 'deleteLeadStatus':
-						httpMethod = 'DELETE';
-						endpointPath = `/lead-statuses/${statusId}`;
-						break;
-					default:
-						throw new Error(`Unsupported operation for Lead Statuses ${operation}`);
-				}
-			} else if (resource === 'leads') {
-				switch (operation) {
-					case 'listLeadQueryFields':
-						httpMethod = 'GET';
-						endpointPath = '/query-builder/fields';
-						qs.context = queryContext;
-						break;
-					case 'listLeads':
-						httpMethod = 'POST';
-						endpointPath = '/leads/list';
-						includeBody = true;
-						break;
-					case 'createLead':
-						httpMethod = 'POST';
-						endpointPath = '/leads';
-						includeBody = true;
-						break;
-					case 'getLead':
-						httpMethod = 'GET';
-						endpointPath = `/leads/${leadId}`;
-						break;
-					case 'updateLead':
-						httpMethod = 'PUT';
-						endpointPath = `/leads/${leadId}`;
-						includeBody = true;
-						break;
-					case 'deleteLead':
-						httpMethod = 'DELETE';
-						endpointPath = `/leads/${leadId}`;
-						break;
-					case 'getLeadTimeline':
-						httpMethod = 'GET';
-						endpointPath = `/leads/${leadId}/timeline`;
-						break;
-					case 'listLeadEntries':
-						httpMethod = 'GET';
-						endpointPath = `/leads/${leadId}/entries`;
-						break;
-					default:
-						throw new Error(`Unsupported operation for Leads ${operation}`);
-				}
-			} else {
-				throw new Error(`Unsupported resource: ${resource}`);
+			switch (resource) {
+				case 'leadSources':
+					returnData.push(await handleLeadSources(this, itemIndex, operation, apiToken));
+					break;
+				case 'leadStatuses':
+					returnData.push(await handleLeadStatuses(this, itemIndex, operation, apiToken));
+					break;
+				case 'leads':
+					returnData.push(await handleLeads(this, itemIndex, operation, apiToken));
+					break;
+				default:
+					throw new NodeOperationError(this.getNode(), `Unsupported resource: ${resource}`);
 			}
-
-			const headers: JsonRecord = {};
-			headers.Authorization = `Bearer ${apiToken}`;
-			headers['Content-Type'] = headers['Content-Type'] ?? 'application/json';
-
-			const options: IHttpRequestOptions = {
-				method: httpMethod,
-				url: `${BASE_URL}${endpointPath}`,
-				qs,
-				headers,
-				json: true,
-			};
-
-			if (includeBody) {
-				if (resource === 'leadStatuses' && statusBodyType === 'form') {
-					const body: JsonRecord = { name: statusName };
-					if (statusColor) body.color = statusColor;
-					body.is_protected = statusIsProtected;
-					options.body = body;
-				} else if (resource === 'leadStatuses') {
-					options.body = parseJson(statusBodyRaw, 'Body');
-				} else if (resource === 'leads' && leadBodyType === 'form') {
-					const body: JsonRecord = {};
-					if (leadIncludeEmpty || leadFirstName) body.first_name = leadFirstName;
-					if (leadIncludeEmpty || leadLastName) body.last_name = leadLastName;
-					if (leadIncludeEmpty || leadEmail) body.email = leadEmail;
-					if (leadIncludeEmpty || leadMobileNumber) body.mobile_number = leadMobileNumber;
-					if (leadIncludeEmpty || leadStatusId) body.status_id = leadStatusId;
-					if (leadIncludeEmpty || leadSourceId) body.source_id = leadSourceId;
-					const extraFields = parseJson(leadAdditionalFieldsRaw, 'Additional Fields');
-					for (const [key, value] of Object.entries(extraFields)) {
-						if (body[key] === undefined) body[key] = value as IDataObject[keyof IDataObject];
-					}
-					options.body = body;
-				} else {
-					options.body = parseJson(bodyRaw, 'Body');
-				}
-			}
-
-			const response = await this.helpers.request(options);
-			returnData.push({ json: response });
 		}
 
 		return [returnData];
