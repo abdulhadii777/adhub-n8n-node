@@ -4,6 +4,10 @@ import { NodeOperationError } from 'n8n-workflow';
 import { handleLeadSources } from './resources/leadSources';
 import { handleLeadStatuses } from './resources/leadStatuses';
 import { handleLeads } from './resources/leads';
+import { handleLeadActivities } from './resources/leadActivities';
+import { handleLeadCustomFields } from './resources/leadCustomFields';
+import { handleLeadNotes } from './resources/leadNotes';
+import { handleLeadTags } from './resources/leadTags';
 
 export class AdhubApp implements INodeType {
 	description: INodeTypeDescription = {
@@ -11,11 +15,11 @@ export class AdhubApp implements INodeType {
 		name: 'adhubApp',
 		group: ['transform'],
 		version: 1,
-		description: 'Manage Adhub leads, sources, and statuses',
+		description: 'Manage Adhub leads, activities, sources, statuses, tags, and custom fields',
 		defaults: {
 			name: 'Adhub App',
 		},
-		icon: 'file:android-icon-144.svg',
+		icon: 'file:android-icon-144.png',
 		inputs: ['main'],
 		outputs: ['main'],
 		usableAsTool: true,
@@ -33,7 +37,11 @@ export class AdhubApp implements INodeType {
 				options: [
 					{ name: 'Lead Source', value: 'leadSources' },
 					{ name: 'Lead Status', value: 'leadStatuses' },
+					{ name: 'Lead Tag', value: 'leadTags' },
 					{ name: 'Lead', value: 'leads' },
+					{ name: 'Lead Activity', value: 'leadActivities' },
+					{ name: 'Lead Note', value: 'leadNotes' },
+					{ name: 'Lead Custom Field', value: 'leadCustomFields' },
 				],
 				default: 'leadSources',
 				required: true,
@@ -86,10 +94,35 @@ export class AdhubApp implements INodeType {
 				required: true,
 				displayOptions: {
 					show: {
+						resource: ['leadTags'],
+					},
+				},
+				options: [
+					{ name: 'Create', value: 'createLeadTag', action: 'Lead tags create' },
+					{ name: 'Delete', value: 'deleteLeadTag', action: 'Lead tags delete' },
+					{ name: 'Get', value: 'getLeadTag', action: 'Lead tags get' },
+					{ name: 'List', value: 'listLeadTags', action: 'Lead tags list' },
+					{ name: 'Update', value: 'updateLeadTag', action: 'Lead tags update' },
+				],
+				default: 'listLeadTags',
+				noDataExpression: true,
+			},
+			{
+				displayName: 'Operation',
+				name: 'operation',
+				type: 'options',
+				required: true,
+				displayOptions: {
+					show: {
 						resource: ['leads'],
 					},
 				},
 				options: [
+					{ name: 'Bulk Create', value: 'bulkCreateLeads', action: 'Leads bulk create' },
+					{ name: 'Bulk Delete', value: 'bulkDeleteLeads', action: 'Leads bulk delete' },
+					{ name: 'Bulk Sync Tags', value: 'bulkSyncLeadTags', action: 'Leads bulk sync tags' },
+					{ name: 'Bulk Update Custom Fields', value: 'bulkUpdateLeadCustomFields', action: 'Leads bulk update custom fields' },
+					{ name: 'Bulk Update Fields', value: 'bulkUpdateLeadFields', action: 'Leads bulk update fields' },
 					{ name: 'Create', value: 'createLead', action: 'Leads create' },
 					{ name: 'Delete', value: 'deleteLead', action: 'Leads delete' },
 					{ name: 'Entries', value: 'listLeadEntries', action: 'Leads entries' },
@@ -100,6 +133,67 @@ export class AdhubApp implements INodeType {
 					{ name: 'Update', value: 'updateLead', action: 'Leads update' },
 				],
 				default: 'listLeads',
+				noDataExpression: true,
+			},
+			{
+				displayName: 'Operation',
+				name: 'operation',
+				type: 'options',
+				required: true,
+				displayOptions: {
+					show: {
+						resource: ['leadActivities'],
+					},
+				},
+				options: [
+					{ name: 'Create', value: 'createLeadActivity', action: 'Lead activities create' },
+					{ name: 'Delete', value: 'deleteLeadActivity', action: 'Lead activities delete' },
+					{ name: 'Get', value: 'getLeadActivity', action: 'Lead activities get' },
+					{ name: 'List', value: 'listLeadActivities', action: 'Lead activities list' },
+					{ name: 'List Types', value: 'listLeadActivityTypes', action: 'Lead activity types list' },
+					{ name: 'Update', value: 'updateLeadActivity', action: 'Lead activities update' },
+				],
+				default: 'listLeadActivities',
+				noDataExpression: true,
+			},
+			{
+				displayName: 'Operation',
+				name: 'operation',
+				type: 'options',
+				required: true,
+				displayOptions: {
+					show: {
+						resource: ['leadNotes'],
+					},
+				},
+				options: [
+					{ name: 'Create', value: 'createLeadNote', action: 'Lead notes create' },
+					{ name: 'Delete', value: 'deleteLeadNote', action: 'Lead notes delete' },
+					{ name: 'Get', value: 'getLeadNote', action: 'Lead notes get' },
+					{ name: 'List', value: 'listLeadNotes', action: 'Lead notes list' },
+					{ name: 'Update', value: 'updateLeadNote', action: 'Lead notes update' },
+				],
+				default: 'listLeadNotes',
+				noDataExpression: true,
+			},
+			{
+				displayName: 'Operation',
+				name: 'operation',
+				type: 'options',
+				required: true,
+				displayOptions: {
+					show: {
+						resource: ['leadCustomFields'],
+					},
+				},
+				options: [
+					{ name: 'Create', value: 'createLeadCustomField', action: 'Lead custom fields create' },
+					{ name: 'Delete', value: 'deleteLeadCustomField', action: 'Lead custom fields delete' },
+					{ name: 'Get', value: 'getLeadCustomField', action: 'Lead custom fields get' },
+					{ name: 'List', value: 'listLeadCustomFields', action: 'Lead custom fields list' },
+					{ name: 'Update', value: 'updateLeadCustomField', action: 'Lead custom fields update' },
+				],
+				default: 'listLeadCustomFields',
 				noDataExpression: true,
 			},
 			{
@@ -131,6 +225,20 @@ export class AdhubApp implements INodeType {
 				description: 'Lead status identifier',
 			},
 			{
+				displayName: 'Tag ID',
+				name: 'tagId',
+				type: 'string',
+				default: '',
+				required: true,
+				displayOptions: {
+					show: {
+						resource: ['leadTags'],
+						operation: ['getLeadTag', 'updateLeadTag', 'deleteLeadTag'],
+					},
+				},
+				description: 'Lead tag identifier',
+			},
+			{
 				displayName: 'Lead ID',
 				name: 'leadId',
 				type: 'string',
@@ -138,17 +246,103 @@ export class AdhubApp implements INodeType {
 				required: true,
 				displayOptions: {
 					show: {
-						resource: ['leads'],
+						resource: ['leads', 'leadActivities'],
 						operation: [
 							'getLead',
 							'updateLead',
 							'deleteLead',
 							'getLeadTimeline',
 							'listLeadEntries',
+							'listLeadActivities',
+							'createLeadActivity',
+							'getLeadActivity',
+							'updateLeadActivity',
+							'deleteLeadActivity',
+							'listLeadNotes',
+							'createLeadNote',
+							'getLeadNote',
+							'updateLeadNote',
+							'deleteLeadNote',
 						],
 					},
 				},
 				description: 'Lead identifier',
+			},
+			{
+				displayName: 'Activity ID',
+				name: 'activityId',
+				type: 'string',
+				default: '',
+				required: true,
+				displayOptions: {
+					show: {
+						resource: ['leadActivities'],
+						operation: ['getLeadActivity', 'updateLeadActivity', 'deleteLeadActivity'],
+					},
+				},
+				description: 'Lead activity identifier',
+			},
+			{
+				displayName: 'Note ID',
+				name: 'noteId',
+				type: 'string',
+				default: '',
+				required: true,
+				displayOptions: {
+					show: {
+						resource: ['leadNotes'],
+						operation: ['getLeadNote', 'updateLeadNote', 'deleteLeadNote'],
+					},
+				},
+				description: 'Lead note identifier',
+			},
+			{
+				displayName: 'Custom Field ID',
+				name: 'customFieldId',
+				type: 'string',
+				default: '',
+				required: true,
+				displayOptions: {
+					show: {
+						resource: ['leadCustomFields'],
+						operation: ['getLeadCustomField', 'updateLeadCustomField', 'deleteLeadCustomField'],
+					},
+				},
+				description: 'Lead custom field identifier',
+			},
+			{
+				displayName: 'Limit',
+				name: 'activityLimit',
+				type: 'number',
+				typeOptions: {
+					minValue: 0,
+					maxValue: 100,
+				},
+				default: 0,
+				displayOptions: {
+					show: {
+						resource: ['leadActivities'],
+						operation: ['listLeadActivities'],
+					},
+				},
+				description: 'Maximum number of activities to return (1-100). Set 0 to omit.',
+			},
+			{
+				displayName: 'Limit',
+				name: 'noteLimit',
+				type: 'number',
+				typeOptions: {
+					minValue: 0,
+					maxValue: 100,
+				},
+				default: 0,
+				displayOptions: {
+					show: {
+						resource: ['leadNotes'],
+						operation: ['listLeadNotes'],
+					},
+				},
+				description: 'Maximum number of notes to return (1-100). Set 0 to omit.',
 			},
 			{
 				displayName: 'Context',
@@ -213,6 +407,80 @@ export class AdhubApp implements INodeType {
 				name: 'body',
 				type: 'string',
 				default: '',
+				placeholder:
+					'{"leads":[{"first_name":"Jane","last_name":"Doe","email":"jane.doe@example.com","mobile_number":null,"status_id":"550e8400-e29b-41d4-a716-446655440000","source_id":null,"owner_id":null,"tag_ids":[]}]}',
+				description: 'Request body as a JSON object',
+				displayOptions: {
+					show: {
+						resource: ['leads'],
+						operation: ['bulkCreateLeads'],
+					},
+				},
+			},
+			{
+				displayName: 'Body (JSON)',
+				name: 'body',
+				type: 'string',
+				default: '',
+				placeholder: '{"lead_ids":["0190c6e2-e4b0-7c83-a6f9-5e3c9b2a4f10"],"filter":[]}',
+				description: 'Request body as a JSON object',
+				displayOptions: {
+					show: {
+						resource: ['leads'],
+						operation: ['bulkDeleteLeads'],
+					},
+				},
+			},
+			{
+				displayName: 'Body (JSON)',
+				name: 'body',
+				type: 'string',
+				default: '',
+				placeholder:
+					'{"lead_ids":["0190c6e2-e4b0-7c83-a6f9-5e3c9b2a4f10"],"filter":{"mode":"and","rules":[{"field":"email","operator":"Contains","value":"@example.com"},{"field":"status","operator":"Equals To","value":"New"}]},"status_id":1,"source_id":2,"owner_id":3}',
+				description: 'Request body as a JSON object',
+				displayOptions: {
+					show: {
+						resource: ['leads'],
+						operation: ['bulkUpdateLeadFields'],
+					},
+				},
+			},
+			{
+				displayName: 'Body (JSON)',
+				name: 'body',
+				type: 'string',
+				default: '',
+				placeholder:
+					'{"lead_ids":["0190c6e2-e4b0-7c83-a6f9-5e3c9b2a4f10"],"filter":[],"add_tag_ids":[1,2],"remove_tag_ids":[3]}',
+				description: 'Request body as a JSON object',
+				displayOptions: {
+					show: {
+						resource: ['leads'],
+						operation: ['bulkSyncLeadTags'],
+					},
+				},
+			},
+			{
+				displayName: 'Body (JSON)',
+				name: 'body',
+				type: 'string',
+				default: '',
+				placeholder:
+					'{"lead_ids":["0190c6e2-e4b0-7c83-a6f9-5e3c9b2a4f10"],"filter":[],"company":"n","job_title":"g","service_interest":"Content Marketing","monthly_budget":"$5k+","timeline":"This quarter","internal_notes":"z"}',
+				description: 'Request body as a JSON object',
+				displayOptions: {
+					show: {
+						resource: ['leads'],
+						operation: ['bulkUpdateLeadCustomFields'],
+					},
+				},
+			},
+			{
+				displayName: 'Body (JSON)',
+				name: 'body',
+				type: 'string',
+				default: '',
 				placeholder: '{"first_name":"Jane"}',
 				description: 'Request body as a JSON object',
 				displayOptions: {
@@ -222,6 +490,125 @@ export class AdhubApp implements INodeType {
 						leadBodyType: ['json'],
 					},
 				},
+			},
+			{
+				displayName: 'Body Type',
+				name: 'activityBodyType',
+				type: 'options',
+				options: [
+					{ name: 'Form', value: 'form' },
+					{ name: 'JSON', value: 'json' },
+				],
+				default: 'form',
+				displayOptions: {
+					show: {
+						resource: ['leadActivities'],
+						operation: ['createLeadActivity', 'updateLeadActivity'],
+					},
+				},
+			},
+			{
+				displayName: 'Body Type',
+				name: 'noteBodyType',
+				type: 'options',
+				options: [
+					{ name: 'Form', value: 'form' },
+					{ name: 'JSON', value: 'json' },
+				],
+				default: 'form',
+				displayOptions: {
+					show: {
+						resource: ['leadNotes'],
+						operation: ['createLeadNote', 'updateLeadNote'],
+					},
+				},
+			},
+			{
+				displayName: 'Body (JSON)',
+				name: 'activityBody',
+				type: 'string',
+				default: '',
+				placeholder: '{"type":"call","body":"Follow-up","occurred_at":"2026-03-16T10:15:30+05:00"}',
+				description: 'Request body as a JSON object',
+				displayOptions: {
+					show: {
+						resource: ['leadActivities'],
+						operation: ['createLeadActivity', 'updateLeadActivity'],
+						activityBodyType: ['json'],
+					},
+				},
+			},
+			{
+				displayName: 'Body (JSON)',
+				name: 'noteBody',
+				type: 'string',
+				default: '',
+				placeholder: '{"body":"Called the lead, left a voicemail."}',
+				description: 'Request body as a JSON object',
+				displayOptions: {
+					show: {
+						resource: ['leadNotes'],
+						operation: ['createLeadNote', 'updateLeadNote'],
+						noteBodyType: ['json'],
+					},
+				},
+			},
+			{
+				displayName: 'Type',
+				name: 'activityType',
+				type: 'string',
+				default: '',
+				displayOptions: {
+					show: {
+						resource: ['leadActivities'],
+						operation: ['createLeadActivity', 'updateLeadActivity'],
+						activityBodyType: ['form'],
+					},
+				},
+				description: 'Activity type key like call, meeting, email',
+			},
+			{
+				displayName: 'Body',
+				name: 'activityBodyText',
+				type: 'string',
+				default: '',
+				displayOptions: {
+					show: {
+						resource: ['leadActivities'],
+						operation: ['createLeadActivity', 'updateLeadActivity'],
+						activityBodyType: ['form'],
+					},
+				},
+				description: 'Activity details or notes',
+			},
+			{
+				displayName: 'Body',
+				name: 'noteBodyText',
+				type: 'string',
+				default: '',
+				displayOptions: {
+					show: {
+						resource: ['leadNotes'],
+						operation: ['createLeadNote', 'updateLeadNote'],
+						noteBodyType: ['form'],
+					},
+				},
+				description: 'Note text',
+			},
+			{
+				displayName: 'Occurred At',
+				name: 'activityOccurredAt',
+				type: 'string',
+				default: '',
+				placeholder: '2026-03-16T10:15:30+05:00',
+				displayOptions: {
+					show: {
+						resource: ['leadActivities'],
+						operation: ['createLeadActivity', 'updateLeadActivity'],
+						activityBodyType: ['form'],
+					},
+				},
+				description: 'ISO 8601 timestamp with timezone',
 			},
 			{
 				displayName: 'Body Type',
@@ -240,6 +627,22 @@ export class AdhubApp implements INodeType {
 				},
 			},
 			{
+				displayName: 'Body Type',
+				name: 'tagBodyType',
+				type: 'options',
+				options: [
+					{ name: 'Form', value: 'form' },
+					{ name: 'JSON', value: 'json' },
+				],
+				default: 'form',
+				displayOptions: {
+					show: {
+						resource: ['leadTags'],
+						operation: ['createLeadTag', 'updateLeadTag'],
+					},
+				},
+			},
+			{
 				displayName: 'Body (JSON)',
 				name: 'statusBody',
 				type: 'string',
@@ -253,6 +656,194 @@ export class AdhubApp implements INodeType {
 						statusBodyType: ['json'],
 					},
 				},
+			},
+			{
+				displayName: 'Body (JSON)',
+				name: 'tagBody',
+				type: 'string',
+				default: '',
+				placeholder: '{"name":"VIP","order":39,"color":"#f97316"}',
+				description: 'Request body as a JSON object',
+				displayOptions: {
+					show: {
+						resource: ['leadTags'],
+						operation: ['createLeadTag', 'updateLeadTag'],
+						tagBodyType: ['json'],
+					},
+				},
+			},
+			{
+				displayName: 'Body Type',
+				name: 'customFieldBodyType',
+				type: 'options',
+				options: [
+					{ name: 'Form', value: 'form' },
+					{ name: 'JSON', value: 'json' },
+				],
+				default: 'form',
+				displayOptions: {
+					show: {
+						resource: ['leadCustomFields'],
+						operation: ['createLeadCustomField', 'updateLeadCustomField', 'deleteLeadCustomField'],
+					},
+				},
+			},
+			{
+				displayName: 'Body (JSON)',
+				name: 'customFieldBody',
+				type: 'string',
+				default: '',
+				placeholder:
+					'{"label":"Industry","name":"industry","type":"select","options":["Retail"],"rules":["required"],"default_value":"Retail","key":"industry"}',
+				description: 'Request body as a JSON object',
+				displayOptions: {
+					show: {
+						resource: ['leadCustomFields'],
+						operation: ['createLeadCustomField', 'updateLeadCustomField', 'deleteLeadCustomField'],
+						customFieldBodyType: ['json'],
+					},
+				},
+			},
+			{
+				displayName: 'Label',
+				name: 'customFieldLabel',
+				type: 'string',
+				default: '',
+				displayOptions: {
+					show: {
+						resource: ['leadCustomFields'],
+						operation: ['createLeadCustomField', 'updateLeadCustomField'],
+						customFieldBodyType: ['form'],
+					},
+				},
+			},
+			{
+				displayName: 'Name',
+				name: 'customFieldName',
+				type: 'string',
+				default: '',
+				displayOptions: {
+					show: {
+						resource: ['leadCustomFields'],
+						operation: ['createLeadCustomField', 'updateLeadCustomField'],
+						customFieldBodyType: ['form'],
+					},
+				},
+			},
+			{
+				displayName: 'Type',
+				name: 'customFieldType',
+				type: 'options',
+				options: [
+					{ name: 'Radio', value: 'radio' },
+					{ name: 'Checkbox', value: 'checkbox' },
+					{ name: 'Multi Select', value: 'multi_select' },
+					{ name: 'Select', value: 'select' },
+					{ name: 'Date', value: 'date' },
+					{ name: 'Email', value: 'email' },
+					{ name: 'Phone', value: 'phone' },
+					{ name: 'Textarea', value: 'textarea' },
+					{ name: 'Text Input', value: 'text_input' },
+				],
+				default: '',
+				displayOptions: {
+					show: {
+						resource: ['leadCustomFields'],
+						operation: ['createLeadCustomField', 'updateLeadCustomField'],
+						customFieldBodyType: ['form'],
+					},
+				},
+				description: 'Field type',
+			},
+			{
+				displayName: 'Options',
+				name: 'customFieldOptions',
+				type: 'fixedCollection',
+				typeOptions: {
+					multipleValues: true,
+				},
+				default: {},
+				placeholder: 'Add option values',
+				options: [
+					{
+						name: 'values',
+						displayName: 'Option',
+						values: [
+							{
+								displayName: 'Value',
+								name: 'value',
+								type: 'string',
+								default: '',
+							},
+						],
+					},
+				],
+				displayOptions: {
+					show: {
+						resource: ['leadCustomFields'],
+						operation: ['createLeadCustomField', 'updateLeadCustomField'],
+						customFieldBodyType: ['form'],
+						customFieldType: ['select', 'multi_select', 'checkbox', 'radio'],
+					},
+				},
+				description: 'Option values for select, multi select, radio, or checkbox fields',
+			},
+			{
+				displayName: 'Required',
+				name: 'customFieldRequired',
+				type: 'boolean',
+				default: false,
+				displayOptions: {
+					show: {
+						resource: ['leadCustomFields'],
+						operation: ['createLeadCustomField', 'updateLeadCustomField'],
+						customFieldBodyType: ['form'],
+					},
+				},
+				description: 'Mark this custom field as required',
+			},
+			{
+				displayName: 'Default Value',
+				name: 'customFieldDefaultValue',
+				type: 'string',
+				default: '',
+				displayOptions: {
+					show: {
+						resource: ['leadCustomFields'],
+						operation: ['createLeadCustomField', 'updateLeadCustomField'],
+						customFieldBodyType: ['form'],
+					},
+				},
+			},
+			{
+				displayName: 'Key',
+				name: 'customFieldKey',
+				type: 'string',
+				default: '',
+				displayOptions: {
+					show: {
+						resource: ['leadCustomFields'],
+						operation: ['createLeadCustomField', 'updateLeadCustomField'],
+						customFieldBodyType: ['form'],
+					},
+				},
+				description: 'Unique key for the custom field',
+			},
+			{
+				displayName: 'Updated At',
+				name: 'customFieldUpdatedAt',
+				type: 'string',
+				default: '',
+				required: true,
+				placeholder: '2026-03-16T10:15:30+00:00',
+				displayOptions: {
+					show: {
+						resource: ['leadCustomFields'],
+						operation: ['updateLeadCustomField', 'deleteLeadCustomField'],
+						customFieldBodyType: ['form'],
+					},
+				},
+				description: 'ISO 8601 timestamp with timezone',
 			},
 			{
 				displayName: 'First Name',
@@ -376,6 +967,49 @@ export class AdhubApp implements INodeType {
 				},
 			},
 			{
+				displayName: 'Name',
+				name: 'tagName',
+				type: 'string',
+				default: '',
+				required: true,
+				displayOptions: {
+					show: {
+						resource: ['leadTags'],
+						operation: ['createLeadTag', 'updateLeadTag'],
+						tagBodyType: ['form'],
+					},
+				},
+			},
+			{
+				displayName: 'Order',
+				name: 'tagOrder',
+				type: 'number',
+				default: 0,
+				displayOptions: {
+					show: {
+						resource: ['leadTags'],
+						operation: ['createLeadTag', 'updateLeadTag'],
+						tagBodyType: ['form'],
+					},
+				},
+				description: 'Display order. Set 0 to omit.',
+			},
+			{
+				displayName: 'Color',
+				name: 'tagColor',
+				type: 'color',
+				default: '',
+				placeholder: '#f97316',
+				displayOptions: {
+					show: {
+						resource: ['leadTags'],
+						operation: ['createLeadTag', 'updateLeadTag'],
+						tagBodyType: ['form'],
+					},
+				},
+				description: 'Hex color like #f97316',
+			},
+			{
 				displayName: 'Color',
 				name: 'statusColor',
 				type: 'color',
@@ -424,8 +1058,20 @@ export class AdhubApp implements INodeType {
 				case 'leadStatuses':
 					returnData.push(await handleLeadStatuses(this, itemIndex, operation, apiToken));
 					break;
+				case 'leadTags':
+					returnData.push(await handleLeadTags(this, itemIndex, operation, apiToken));
+					break;
 				case 'leads':
 					returnData.push(await handleLeads(this, itemIndex, operation, apiToken));
+					break;
+				case 'leadActivities':
+					returnData.push(await handleLeadActivities(this, itemIndex, operation, apiToken));
+					break;
+				case 'leadNotes':
+					returnData.push(await handleLeadNotes(this, itemIndex, operation, apiToken));
+					break;
+				case 'leadCustomFields':
+					returnData.push(await handleLeadCustomFields(this, itemIndex, operation, apiToken));
 					break;
 				default:
 					throw new NodeOperationError(this.getNode(), `Unsupported resource: ${resource}`);

@@ -1,13 +1,16 @@
 # Adhub App n8n Node
 
-An n8n community node for managing Adhub leads, lead sources, and lead statuses.
+An n8n community node for managing Adhub leads, lead sources, lead statuses, lead tags, activities, and custom fields.
 
 ## Features
 
 - Lead Sources: list, create, get, update, delete
 - Lead Statuses: list, create, get, update, delete
+- Lead Tags: list, create, get, update, delete
 - Leads: list, create, get, update, delete
 - Lead extras: query fields, timeline, entries
+- Lead Activities: list types, list, create, get, update, delete
+- Lead Custom Fields: list, create, get, update, delete
 
 ## Installation
 
@@ -43,6 +46,13 @@ Resource: Lead Status
 - Update
 - Delete
 
+Resource: Lead Tag
+- List
+- Create
+- Get
+- Update
+- Delete
+
 Resource: Lead
 - List
 - Create
@@ -52,6 +62,21 @@ Resource: Lead
 - List Query Fields
 - Timeline
 - Entries
+
+Resource: Lead Activity
+- List Types
+- List
+- Create
+- Get
+- Update
+- Delete
+
+Resource: Lead Custom Field
+- List
+- Create
+- Get
+- Update
+- Delete
 
 ## Notes
 

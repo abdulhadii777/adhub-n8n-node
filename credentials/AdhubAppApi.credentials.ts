@@ -1,11 +1,11 @@
-import type { ICredentialType, INodeProperties } from 'n8n-workflow';
+import type { ICredentialTestRequest, ICredentialType, Icon, INodeProperties } from 'n8n-workflow';
 
 export class AdhubAppApi implements ICredentialType {
 	name = 'adhubAppApi';
 	displayName = 'Adhub App API';
 	documentationUrl = 'https://docs.n8n.io/integrations/creating-nodes/';
-	icon = 'file:android-icon-144.svg';
-	test = {
+	icon: Icon = 'file:android-icon-144.png';
+	test: ICredentialTestRequest = {
 		request: {
 			method: 'GET',
 			url: 'https://adhub-main-d1fcap.laravel.cloud/api/v1/lead-sources',

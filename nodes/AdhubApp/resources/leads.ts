@@ -20,6 +20,14 @@ async function handleLeads(
 	const leadSourceId = ctx.getNodeParameter('leadSourceId', itemIndex, '') as string;
 	const leadIncludeEmpty = ctx.getNodeParameter('leadIncludeEmpty', itemIndex, false) as boolean;
 	const leadAdditionalFieldsRaw = ctx.getNodeParameter('leadAdditionalFields', itemIndex, '') as string;
+	const operationsUsingJsonBody = new Set([
+		'listLeads',
+		'bulkCreateLeads',
+		'bulkDeleteLeads',
+		'bulkUpdateLeadFields',
+		'bulkSyncLeadTags',
+		'bulkUpdateLeadCustomFields',
+	]);
 
 	let method: 'GET' | 'POST' | 'PUT' | 'DELETE';
 	let endpoint: string;
@@ -35,6 +43,31 @@ async function handleLeads(
 		case 'listLeads':
 			method = 'POST';
 			endpoint = '/leads/list';
+			includeBody = true;
+			break;
+		case 'bulkCreateLeads':
+			method = 'POST';
+			endpoint = '/leads/bulk';
+			includeBody = true;
+			break;
+		case 'bulkDeleteLeads':
+			method = 'DELETE';
+			endpoint = '/leads/bulk';
+			includeBody = true;
+			break;
+		case 'bulkUpdateLeadFields':
+			method = 'POST';
+			endpoint = '/leads/bulk/fields';
+			includeBody = true;
+			break;
+		case 'bulkSyncLeadTags':
+			method = 'POST';
+			endpoint = '/leads/bulk/tags';
+			includeBody = true;
+			break;
+		case 'bulkUpdateLeadCustomFields':
+			method = 'POST';
+			endpoint = '/leads/bulk/custom-fields';
 			includeBody = true;
 			break;
 		case 'createLead':
@@ -69,7 +102,9 @@ async function handleLeads(
 
 	let body;
 	if (includeBody) {
-		if (leadBodyType === 'form') {
+		if (operationsUsingJsonBody.has(operation)) {
+			body = parseJson(bodyRaw, 'Body');
+		} else if (leadBodyType === 'form') {
 			const formBody: JsonRecord = {};
 			if (leadIncludeEmpty || leadFirstName) formBody.first_name = leadFirstName;
 			if (leadIncludeEmpty || leadLastName) formBody.last_name = leadLastName;
