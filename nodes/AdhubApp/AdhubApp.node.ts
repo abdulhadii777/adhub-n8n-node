@@ -67,11 +67,11 @@ export class AdhubApp implements INodeType {
 					},
 				},
 				options: [
-					{ name: 'List', value: 'listLeadSources', action: 'Lead Sources: List' },
-					{ name: 'Create', value: 'createLeadSource', action: 'Lead Sources: Create' },
-					{ name: 'Get', value: 'getLeadSource', action: 'Lead Sources: Get' },
-					{ name: 'Update', value: 'updateLeadSource', action: 'Lead Sources: Update' },
-					{ name: 'Delete', value: 'deleteLeadSource', action: 'Lead Sources: Delete' },
+					{ name: 'List', value: 'listLeadSources', action: 'Lead Sources List' },
+					{ name: 'Create', value: 'createLeadSource', action: 'Lead Sources Create' },
+					{ name: 'Get', value: 'getLeadSource', action: 'Lead Sources Get' },
+					{ name: 'Update', value: 'updateLeadSource', action: 'Lead Sources Update' },
+					{ name: 'Delete', value: 'deleteLeadSource', action: 'Lead Sources Delete' },
 				],
 				default: 'listLeadSources',
 			},
@@ -86,11 +86,11 @@ export class AdhubApp implements INodeType {
 					},
 				},
 				options: [
-					{ name: 'List', value: 'listLeadStatuses', action: 'Lead Statuses: List' },
-					{ name: 'Create', value: 'createLeadStatus', action: 'Lead Statuses: Create' },
-					{ name: 'Get', value: 'getLeadStatus', action: 'Lead Statuses: Get' },
-					{ name: 'Update', value: 'updateLeadStatus', action: 'Lead Statuses: Update' },
-					{ name: 'Delete', value: 'deleteLeadStatus', action: 'Lead Statuses: Delete' },
+					{ name: 'List', value: 'listLeadStatuses', action: 'Lead Statuses List' },
+					{ name: 'Create', value: 'createLeadStatus', action: 'Lead Statuses Create' },
+					{ name: 'Get', value: 'getLeadStatus', action: 'Lead Statuses Get' },
+					{ name: 'Update', value: 'updateLeadStatus', action: 'Lead Statuses Update' },
+					{ name: 'Delete', value: 'deleteLeadStatus', action: 'Lead Statuses Delete' },
 				],
 				default: 'listLeadStatuses',
 			},
@@ -105,14 +105,14 @@ export class AdhubApp implements INodeType {
 					},
 				},
 				options: [
-					{ name: 'List', value: 'listLeads', action: 'Leads: List' },
-					{ name: 'Create', value: 'createLead', action: 'Leads: Create' },
-					{ name: 'Get', value: 'getLead', action: 'Leads: Get' },
-					{ name: 'Update', value: 'updateLead', action: 'Leads: Update' },
-					{ name: 'Delete', value: 'deleteLead', action: 'Leads: Delete' },
-					{ name: 'List Query Fields', value: 'listLeadQueryFields', action: 'Leads: Query Fields' },
-					{ name: 'Timeline', value: 'getLeadTimeline', action: 'Leads: Timeline' },
-					{ name: 'Entries', value: 'listLeadEntries', action: 'Leads: Entries' },
+					{ name: 'List', value: 'listLeads', action: 'Leads List' },
+					{ name: 'Create', value: 'createLead', action: 'Leads Create' },
+					{ name: 'Get', value: 'getLead', action: 'Leads Get' },
+					{ name: 'Update', value: 'updateLead', action: 'Leads Update' },
+					{ name: 'Delete', value: 'deleteLead', action: 'Leads Delete' },
+					{ name: 'List Query Fields', value: 'listLeadQueryFields', action: 'Leads Query Fields' },
+					{ name: 'Timeline', value: 'getLeadTimeline', action: 'Leads Timeline' },
+					{ name: 'Entries', value: 'listLeadEntries', action: 'Leads Entries' },
 				],
 				default: 'listLeads',
 			},
@@ -487,7 +487,7 @@ export class AdhubApp implements INodeType {
 						endpointPath = `/lead-sources/${sourceId}`;
 						break;
 					default:
-						throw new Error(`Unsupported operation for Lead Sources: ${operation}`);
+						throw new Error(`Unsupported operation for Lead Sources ${operation}`);
 				}
 			} else if (resource === 'leadStatuses') {
 				switch (operation) {
@@ -514,7 +514,7 @@ export class AdhubApp implements INodeType {
 						endpointPath = `/lead-statuses/${statusId}`;
 						break;
 					default:
-						throw new Error(`Unsupported operation for Lead Statuses: ${operation}`);
+						throw new Error(`Unsupported operation for Lead Statuses ${operation}`);
 				}
 			} else if (resource === 'leads') {
 				switch (operation) {
@@ -555,7 +555,7 @@ export class AdhubApp implements INodeType {
 						endpointPath = `/leads/${leadId}/entries`;
 						break;
 					default:
-						throw new Error(`Unsupported operation for Leads: ${operation}`);
+						throw new Error(`Unsupported operation for Leads ${operation}`);
 				}
 			} else {
 				throw new Error(`Unsupported resource: ${resource}`);
