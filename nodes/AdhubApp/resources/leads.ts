@@ -33,6 +33,15 @@ async function handleLeads(
 	const leadAdditionalFieldsRaw = ctx.getNodeParameter('leadAdditionalFields', itemIndex, '') as string;
 	const leadTimelineLimit = ctx.getNodeParameter('leadTimelineLimit', itemIndex, 0) as number;
 	const leadEntriesLimit = ctx.getNodeParameter('leadEntriesLimit', itemIndex, 0) as number;
+	const bulkCreateBodyRaw = ctx.getNodeParameter('bulkCreateBody', itemIndex, '') as string;
+	const bulkDeleteBodyRaw = ctx.getNodeParameter('bulkDeleteBody', itemIndex, '') as string;
+	const bulkUpdateFieldsBodyRaw = ctx.getNodeParameter('bulkUpdateFieldsBody', itemIndex, '') as string;
+	const bulkSyncTagsBodyRaw = ctx.getNodeParameter('bulkSyncTagsBody', itemIndex, '') as string;
+	const bulkUpdateCustomFieldsBodyRaw = ctx.getNodeParameter(
+		'bulkUpdateCustomFieldsBody',
+		itemIndex,
+		'',
+	) as string;
 	const operationsUsingJsonBody = new Set([
 		'listLeads',
 	]);
@@ -62,6 +71,31 @@ async function handleLeads(
 			method = 'GET';
 			endpoint = `/leads/${leadId}`;
 			break;
+		case 'bulkCreateLeads':
+			method = 'POST';
+			endpoint = '/leads/bulk';
+			includeBody = true;
+			break;
+		case 'bulkDeleteLeads':
+			method = 'DELETE';
+			endpoint = '/leads/bulk';
+			includeBody = true;
+			break;
+		case 'bulkUpdateLeadFields':
+			method = 'POST';
+			endpoint = '/leads/bulk/fields';
+			includeBody = true;
+			break;
+		case 'bulkSyncLeadTags':
+			method = 'POST';
+			endpoint = '/leads/bulk/tags';
+			includeBody = true;
+			break;
+		case 'bulkUpdateLeadCustomFields':
+			method = 'POST';
+			endpoint = '/leads/bulk/custom-fields';
+			includeBody = true;
+			break;
 		case 'updateLead':
 			method = 'PUT';
 			endpoint = `/leads/${leadId}`;
@@ -87,7 +121,17 @@ async function handleLeads(
 
 	let body;
 	if (includeBody) {
-		if (operationsUsingJsonBody.has(operation)) {
+		if (operation === 'bulkCreateLeads') {
+			body = parseJson(bulkCreateBodyRaw, 'Bulk Create Body');
+		} else if (operation === 'bulkDeleteLeads') {
+			body = parseJson(bulkDeleteBodyRaw, 'Bulk Delete Body');
+		} else if (operation === 'bulkUpdateLeadFields') {
+			body = parseJson(bulkUpdateFieldsBodyRaw, 'Bulk Update Fields Body');
+		} else if (operation === 'bulkSyncLeadTags') {
+			body = parseJson(bulkSyncTagsBodyRaw, 'Bulk Sync Tags Body');
+		} else if (operation === 'bulkUpdateLeadCustomFields') {
+			body = parseJson(bulkUpdateCustomFieldsBodyRaw, 'Bulk Update Custom Fields Body');
+		} else if (operationsUsingJsonBody.has(operation)) {
 			body = parseJson(bodyRaw, 'Body');
 		} else if (leadBodyType === 'form') {
 			const formBody: JsonRecord = {};

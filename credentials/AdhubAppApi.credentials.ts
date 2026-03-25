@@ -4,7 +4,7 @@ export class AdhubAppApi implements ICredentialType {
 	name = 'adhubAppApi';
 	displayName = 'Adhub App API';
 	documentationUrl = 'https://docs.n8n.io/integrations/creating-nodes/';
-	icon: Icon = 'file:android-icon-144.png';
+	icon: Icon = 'file:adhubapp.svg';
 	test: ICredentialTestRequest = {
 		request: {
 			method: 'GET',

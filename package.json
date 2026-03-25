@@ -1,19 +1,19 @@
 {
 	"name": "n8n-nodes-adhubapp",
 	"version": "0.1.0",
-	"description": "",
+	"description": "n8n community node for managing Adhub leads, statuses, tags, activities, and custom fields",
 	"license": "MIT",
 	"homepage": "",
 	"keywords": [
 		"n8n-community-node-package"
 	],
 	"author": {
-		"name": "",
-		"email": ""
+		"name": "Adhub",
+		"email": "support@adhub.app"
 	},
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/<...>/n8n-nodes-<...>.git"
+		"url": "https://github.com/adhubapp/n8n-nodes-adhubapp.git"
 	},
 	"scripts": {
 		"build": "n8n-node build",

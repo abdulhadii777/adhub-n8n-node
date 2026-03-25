@@ -19,7 +19,7 @@ export class AdhubApp implements INodeType {
 		defaults: {
 			name: 'Adhub App',
 		},
-		icon: 'file:android-icon-144.png',
+		icon: 'file:adhubapp.svg',
 		inputs: ['main'],
 		outputs: ['main'],
 		usableAsTool: true,
@@ -35,13 +35,13 @@ export class AdhubApp implements INodeType {
 				name: 'resource',
 				type: 'options',
 				options: [
+					{ name: 'Lead', value: 'leads' },
+					{ name: 'Lead Activity', value: 'leadActivities' },
+					{ name: 'Lead Custom Field', value: 'leadCustomFields' },
+					{ name: 'Lead Note', value: 'leadNotes' },
 					{ name: 'Lead Source', value: 'leadSources' },
 					{ name: 'Lead Status', value: 'leadStatuses' },
 					{ name: 'Lead Tag', value: 'leadTags' },
-					{ name: 'Lead', value: 'leads' },
-					{ name: 'Lead Activity', value: 'leadActivities' },
-					{ name: 'Lead Note', value: 'leadNotes' },
-					{ name: 'Lead Custom Field', value: 'leadCustomFields' },
 				],
 				default: 'leadSources',
 				required: true,
@@ -118,6 +118,11 @@ export class AdhubApp implements INodeType {
 					},
 				},
 				options: [
+					{ name: 'Bulk Create', value: 'bulkCreateLeads', action: 'Leads bulk create' },
+					{ name: 'Bulk Delete', value: 'bulkDeleteLeads', action: 'Leads bulk delete' },
+					{ name: 'Bulk Sync Tags', value: 'bulkSyncLeadTags', action: 'Leads bulk sync tags' },
+					{ name: 'Bulk Update Custom Fields', value: 'bulkUpdateLeadCustomFields', action: 'Leads bulk update custom fields' },
+					{ name: 'Bulk Update Fields', value: 'bulkUpdateLeadFields', action: 'Leads bulk update fields' },
 					{ name: 'Create', value: 'createLead', action: 'Leads create' },
 					{ name: 'Delete', value: 'deleteLead', action: 'Leads delete' },
 					{ name: 'Entries', value: 'listLeadEntries', action: 'Leads entries' },
@@ -437,6 +442,80 @@ export class AdhubApp implements INodeType {
 				},
 			},
 			{
+				displayName: 'Bulk Create Body (JSON)',
+				name: 'bulkCreateBody',
+				type: 'string',
+				default: '',
+				placeholder:
+					'{"leads":[{"first_name":"Jane","last_name":"Doe","email":"jane.doe@example.com","mobile_number":null,"status_id":"550e8400-e29b-41d4-a716-446655440000","source_id":null,"owner_id":null,"tag_ids":[]},{"first_name":"John","last_name":"Smith","email":null,"mobile_number":"+12025551234","status_id":"550e8400-e29b-41d4-a716-446655440000","source_id":null,"owner_id":null,"tag_ids":[]}]}',
+				description: 'Request body as a JSON object',
+				displayOptions: {
+					show: {
+						resource: ['leads'],
+						operation: ['bulkCreateLeads'],
+					},
+				},
+			},
+			{
+				displayName: 'Bulk Delete Body (JSON)',
+				name: 'bulkDeleteBody',
+				type: 'string',
+				default: '',
+				placeholder: '{"lead_ids":["0190c6e2-e4b0-7c83-a6f9-5e3c9b2a4f10"],"filter":[]}',
+				description: 'Request body as a JSON object',
+				displayOptions: {
+					show: {
+						resource: ['leads'],
+						operation: ['bulkDeleteLeads'],
+					},
+				},
+			},
+			{
+				displayName: 'Bulk Update Fields Body (JSON)',
+				name: 'bulkUpdateFieldsBody',
+				type: 'string',
+				default: '',
+				placeholder:
+					'{"lead_ids":["0190c6e2-e4b0-7c83-a6f9-5e3c9b2a4f10"],"filter":{"mode":"and","rules":[{"field":"email","operator":"Contains","value":"@example.com"},{"field":"status","operator":"Equals To","value":"New"}]},"status_id":1,"source_id":2,"owner_id":3}',
+				description: 'Request body as a JSON object',
+				displayOptions: {
+					show: {
+						resource: ['leads'],
+						operation: ['bulkUpdateLeadFields'],
+					},
+				},
+			},
+			{
+				displayName: 'Bulk Sync Tags Body (JSON)',
+				name: 'bulkSyncTagsBody',
+				type: 'string',
+				default: '',
+				placeholder:
+					'{"lead_ids":["0190c6e2-e4b0-7c83-a6f9-5e3c9b2a4f10"],"filter":[],"add_tag_ids":[1,2],"remove_tag_ids":[3]}',
+				description: 'Request body as a JSON object',
+				displayOptions: {
+					show: {
+						resource: ['leads'],
+						operation: ['bulkSyncLeadTags'],
+					},
+				},
+			},
+			{
+				displayName: 'Bulk Update Custom Fields Body (JSON)',
+				name: 'bulkUpdateCustomFieldsBody',
+				type: 'string',
+				default: '',
+				placeholder:
+					'{"lead_ids":["0190c6e2-e4b0-7c83-a6f9-5e3c9b2a4f10"],"filter":[],"company":"n","job_title":"g","service_interest":"Content Marketing","monthly_budget":"$5k+","timeline":"This quarter","internal_notes":"z"}',
+				description: 'Request body as a JSON object',
+				displayOptions: {
+					show: {
+						resource: ['leads'],
+						operation: ['bulkUpdateLeadCustomFields'],
+					},
+				},
+			},
+			{
 				displayName: 'Body (JSON)',
 				name: 'body',
 				type: 'string',
@@ -695,17 +774,17 @@ export class AdhubApp implements INodeType {
 				name: 'customFieldType',
 				type: 'options',
 				options: [
-					{ name: 'Radio', value: 'radio' },
 					{ name: 'Checkbox', value: 'checkbox' },
-					{ name: 'Multi Select', value: 'multi_select' },
-					{ name: 'Select', value: 'select' },
 					{ name: 'Date', value: 'date' },
 					{ name: 'Email', value: 'email' },
+					{ name: 'Multi Select', value: 'multi_select' },
 					{ name: 'Phone', value: 'phone' },
-					{ name: 'Textarea', value: 'textarea' },
+					{ name: 'Radio', value: 'radio' },
+					{ name: 'Select', value: 'select' },
 					{ name: 'Text Input', value: 'text_input' },
+					{ name: 'Textarea', value: 'textarea' },
 				],
-				default: '',
+				default: 'text_input',
 				displayOptions: {
 					show: {
 						resource: ['leadCustomFields'],
@@ -760,7 +839,7 @@ export class AdhubApp implements INodeType {
 						customFieldBodyType: ['form'],
 					},
 				},
-				description: 'Mark this custom field as required',
+				description: 'Whether to mark this custom field as required',
 			},
 			{
 				displayName: 'Default Value',
