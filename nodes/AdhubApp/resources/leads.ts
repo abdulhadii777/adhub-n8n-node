@@ -8,6 +8,11 @@ async function handleLeads(
 	operation: string,
 	apiToken: string,
 ): Promise<INodeExecutionData> {
+	const normalizeFilterMode = (mode: string): 'and' | 'or' => {
+		const normalized = (mode ?? '').toString().trim().toLowerCase();
+		return normalized === 'or' ? 'or' : 'and';
+	};
+
 	const leadId = ctx.getNodeParameter('leadId', itemIndex, '') as string;
 	const queryContext = ctx.getNodeParameter('queryContext', itemIndex, '') as string;
 	const bodyRaw = ctx.getNodeParameter('body', itemIndex, '') as string;
@@ -39,11 +44,14 @@ async function handleLeads(
 	const leadListSearch = ctx.getNodeParameter('leadListSearch', itemIndex, '') as string;
 	const leadListFilterMode = ctx.getNodeParameter('leadListFilterMode', itemIndex, 'and') as string;
 	const leadListFilterRulesParam = ctx.getNodeParameter('leadListFilterRules', itemIndex, {}) as {
-		values?: Array<{ field?: string; operator?: string; value?: string }>;
+		values?: Array<{
+			field?: string;
+			operator?: string;
+			valueText?: string;
+			valueDate?: string;
+			valueSelect?: string;
+		}>;
 	};
-	const leadListSortPreset = ctx.getNodeParameter('leadListSortPreset', itemIndex, '') as string;
-	const leadListSortBy = ctx.getNodeParameter('leadListSortBy', itemIndex, '') as string;
-	const leadListSortDir = ctx.getNodeParameter('leadListSortDir', itemIndex, '') as string;
 	const bulkCreateBodyRaw = ctx.getNodeParameter('bulkCreateBody', itemIndex, '') as string;
 	const bulkDeleteBodyRaw = ctx.getNodeParameter('bulkDeleteBody', itemIndex, '') as string;
 	const bulkUpdateFieldsBodyRaw = ctx.getNodeParameter('bulkUpdateFieldsBody', itemIndex, '') as string;
@@ -184,41 +192,44 @@ async function handleLeads(
 			if (leadListPerPage) listBody.per_page = leadListPerPage;
 			if (leadListPage) listBody.page = leadListPage;
 			if (leadListSearch) listBody.search = leadListSearch;
+			const noValueOperators = new Set([
+				'Is Empty',
+				'Is Not Empty',
+				'Today',
+				'Yesterday',
+				'This Week',
+				'Last Week',
+				'This Month',
+				'Last Month',
+				'This Year',
+			]);
 			const filterRules = (leadListFilterRulesParam?.values ?? [])
 				.map((rule) => ({
 					field: (rule?.field ?? '').toString().trim(),
 					operator: (rule?.operator ?? '').toString().trim(),
-					value: (rule?.value ?? '').toString().trim(),
+					value: (
+						rule?.valueSelect ??
+						rule?.valueDate ??
+						rule?.valueText ??
+						''
+					)
+						.toString()
+						.trim(),
 				}))
 				.filter((rule) => rule.field.length > 0 && rule.operator.length > 0)
-				.map((rule) =>
-					rule.value.length > 0
+				.map((rule) => {
+					if (noValueOperators.has(rule.operator)) {
+						return { field: rule.field, operator: rule.operator };
+					}
+					return rule.value.length > 0
 						? rule
-						: { field: rule.field, operator: rule.operator },
-				);
+						: { field: rule.field, operator: rule.operator };
+				});
 			if (filterRules.length) {
 				listBody.filter = {
-					mode: leadListFilterMode || 'and',
+					mode: normalizeFilterMode(leadListFilterMode),
 					rules: filterRules,
 				};
-			}
-			const sortPresets: Record<string, { sort_by: string; sort_dir: string }> = {
-				activity_desc: { sort_by: 'activity', sort_dir: 'desc' },
-				activity_asc: { sort_by: 'activity', sort_dir: 'asc' },
-				date_desc: { sort_by: 'date', sort_dir: 'desc' },
-				date_asc: { sort_by: 'date', sort_dir: 'asc' },
-				name_asc: { sort_by: 'name', sort_dir: 'asc' },
-				name_desc: { sort_by: 'name', sort_dir: 'desc' },
-			};
-			if (leadListSortPreset && leadListSortPreset !== 'custom') {
-				const preset = sortPresets[leadListSortPreset];
-				if (preset) {
-					listBody.sort_by = preset.sort_by;
-					listBody.sort_dir = preset.sort_dir;
-				}
-			} else {
-				if (leadListSortBy) listBody.sort_by = leadListSortBy;
-				if (leadListSortDir) listBody.sort_dir = leadListSortDir;
 			}
 			body = listBody;
 		} else {
@@ -226,8 +237,18 @@ async function handleLeads(
 			if (leadListPerPage) listBody.per_page = listBody.per_page ?? leadListPerPage;
 			if (leadListPage) listBody.page = listBody.page ?? leadListPage;
 			if (leadListSearch) listBody.search = listBody.search ?? leadListSearch;
-			if (leadListSortBy) listBody.sort_by = listBody.sort_by ?? leadListSortBy;
-			if (leadListSortDir) listBody.sort_dir = listBody.sort_dir ?? leadListSortDir;
+			delete listBody.sort_by;
+			delete listBody.sort_dir;
+			const filter = listBody.filter as JsonRecord | undefined;
+			if (filter) {
+				const rules = filter.rules as unknown;
+				const ruleList = Array.isArray(rules) ? rules : [];
+				if (ruleList.length === 0) {
+					delete listBody.filter;
+				} else {
+					filter.mode = normalizeFilterMode((filter.mode as string) ?? '');
+				}
+			}
 			body = listBody;
 		}
 	}
@@ -240,8 +261,39 @@ async function handleLeads(
 		body,
 	});
 
-	const response = await ctx.helpers.request(options);
-	return { json: response };
+	try {
+		const response = await ctx.helpers.request(options);
+		return { json: response };
+	} catch (error) {
+		if (operation === 'listLeads' && options.body && typeof options.body === 'object') {
+			const errorData = (error as { response?: { data?: JsonRecord; status?: number } })?.response
+				?.data as JsonRecord | undefined;
+			const status = (error as { response?: { status?: number } })?.response?.status;
+			const errors = (errorData?.errors ?? {}) as Record<string, unknown>;
+			const hasFilterModeError = Boolean(errors['filter.mode']);
+			if (status === 422 && hasFilterModeError) {
+				const patchedBody = { ...(options.body as JsonRecord) };
+				let changed = false;
+				if (hasFilterModeError) {
+					const filter = patchedBody.filter as JsonRecord | undefined;
+					if (filter) {
+						filter.mode = normalizeFilterMode((filter.mode as string) ?? '');
+						const rules = filter.rules as unknown;
+						if (!Array.isArray(rules) || rules.length === 0) {
+							delete patchedBody.filter;
+						}
+						changed = true;
+					}
+				}
+				if (changed) {
+					const retryOptions = { ...options, body: patchedBody };
+					const response = await ctx.helpers.request(retryOptions);
+					return { json: response };
+				}
+			}
+		}
+		throw error;
+	}
 }
 
 export { handleLeads };

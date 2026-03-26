@@ -1,6 +1,14 @@
-import type { IExecuteFunctions, INodeExecutionData, INodeType, INodeTypeDescription } from 'n8n-workflow';
+import type {
+	IExecuteFunctions,
+	ILoadOptionsFunctions,
+	INodeExecutionData,
+	INodePropertyOptions,
+	INodeType,
+	INodeTypeDescription,
+} from 'n8n-workflow';
 import { NodeOperationError } from 'n8n-workflow';
 
+import { buildRequestOptions, JsonRecord } from './helpers';
 import { handleLeadSources } from './resources/leadSources';
 import { handleLeadStatuses } from './resources/leadStatuses';
 import { handleLeads } from './resources/leads';
@@ -8,6 +16,80 @@ import { handleLeadActivities } from './resources/leadActivities';
 import { handleLeadCustomFields } from './resources/leadCustomFields';
 import { handleLeadNotes } from './resources/leadNotes';
 import { handleLeadTags } from './resources/leadTags';
+import { handleTasks } from './resources/tasks';
+
+type QueryField = {
+	key?: string;
+	label?: string;
+	type?: string;
+	operators?: string[];
+	options?: Array<{ value?: string; label?: string }>;
+};
+
+async function fetchQueryFields(
+	ctx: ILoadOptionsFunctions,
+	context: 'lead.list' | 'task.list',
+): Promise<QueryField[]> {
+	const credentials = await ctx.getCredentials('adhubAppApi');
+	const apiToken = credentials.apiToken as string;
+	const options = buildRequestOptions({
+		method: 'GET',
+		endpoint: '/query-builder/fields',
+		apiToken,
+		qs: { context } as JsonRecord,
+	});
+	const response = (await ctx.helpers.request(options)) as unknown;
+	if (Array.isArray(response)) {
+		return response.flat() as QueryField[];
+	}
+	return [];
+}
+
+const noValueOperators = [
+	'Is Empty',
+	'Is Not Empty',
+	'Today',
+	'Yesterday',
+	'This Week',
+	'Last Week',
+	'This Month',
+	'Last Month',
+	'This Year',
+];
+
+const dateOperators = [
+	'Equals To',
+	'Before',
+	'After',
+	'On Or Before',
+	'On Or After',
+	'Between',
+	'Today',
+	'Yesterday',
+	'This Week',
+	'Last Week',
+	'This Month',
+	'Last Month',
+	'This Year',
+	'X Days Before',
+	'X Days After',
+];
+
+const valueOperators = [
+	'Equals To',
+	'Not Equals To',
+	'Contains',
+	'Does Not Contain',
+	'Starts With',
+	'Ends With',
+	'Before',
+	'After',
+	'On Or Before',
+	'On Or After',
+	'Between',
+	'X Days Before',
+	'X Days After',
+];
 
 export class AdhubApp implements INodeType {
 	description: INodeTypeDescription = {
@@ -42,6 +124,7 @@ export class AdhubApp implements INodeType {
 					{ name: 'Lead Source', value: 'leadSources' },
 					{ name: 'Lead Status', value: 'leadStatuses' },
 					{ name: 'Lead Tag', value: 'leadTags' },
+					{ name: 'Task', value: 'tasks' },
 				],
 				default: 'leadSources',
 				required: true,
@@ -197,6 +280,29 @@ export class AdhubApp implements INodeType {
 				noDataExpression: true,
 			},
 			{
+				displayName: 'Operation',
+				name: 'operation',
+				type: 'options',
+				required: true,
+				displayOptions: {
+					show: {
+						resource: ['tasks'],
+					},
+				},
+				options: [
+					{ name: 'Bulk Complete', value: 'bulkCompleteTasks', action: 'Tasks bulk complete' },
+					{ name: 'Bulk Delete', value: 'bulkDeleteTasks', action: 'Tasks bulk delete' },
+					{ name: 'Complete', value: 'completeTask', action: 'Tasks complete' },
+					{ name: 'Create', value: 'createTask', action: 'Tasks create' },
+					{ name: 'Delete', value: 'deleteTask', action: 'Tasks delete' },
+					{ name: 'Get', value: 'getTask', action: 'Tasks get' },
+					{ name: 'List', value: 'listTasks', action: 'Tasks list' },
+					{ name: 'Update', value: 'updateTask', action: 'Tasks update' },
+				],
+				default: 'listTasks',
+				noDataExpression: true,
+			},
+			{
 				displayName: 'Source ID',
 				name: 'sourceId',
 				type: 'string',
@@ -309,6 +415,20 @@ export class AdhubApp implements INodeType {
 					},
 				},
 				description: 'Lead custom field identifier',
+			},
+			{
+				displayName: 'Task ID',
+				name: 'taskId',
+				type: 'string',
+				default: '',
+				required: true,
+				displayOptions: {
+					show: {
+						resource: ['tasks'],
+						operation: ['getTask', 'updateTask', 'deleteTask', 'completeTask'],
+					},
+				},
+				description: 'Task identifier',
 			},
 			{
 				displayName: 'Limit',
@@ -449,7 +569,7 @@ export class AdhubApp implements INodeType {
 				type: 'string',
 				default: '',
 				placeholder:
-					'{"per_page":50,"page":2,"search":"john","filter":{"mode":"and","rules":[{"field":"lead.status","operator":"Equals To","value":"New"}]},"sort_by":"name","sort_dir":"asc"}',
+					'{"per_page":50,"page":2,"search":"john","filter":{"mode":"and","rules":[{"field":"lead.status","operator":"Equals To","value":"New"}]}}',
 				description: 'Request body as a JSON object',
 				displayOptions: {
 					show: {
@@ -513,8 +633,8 @@ export class AdhubApp implements INodeType {
 				name: 'leadListFilterMode',
 				type: 'options',
 				options: [
-					{ name: 'And', value: 'and' },
-					{ name: 'Or', value: 'or' },
+					{ name: 'AND', value: 'and' },
+					{ name: 'OR', value: 'or' },
 				],
 				default: 'and',
 				displayOptions: {
@@ -543,21 +663,59 @@ export class AdhubApp implements INodeType {
 							{
 								displayName: 'Field',
 								name: 'field',
-								type: 'string',
+								type: 'options',
+								typeOptions: {
+									loadOptionsMethod: 'getLeadFilterFields',
+								},
 								default: '',
 							},
 							{
 								displayName: 'Operator',
 								name: 'operator',
-								type: 'string',
+								type: 'options',
+								typeOptions: {
+									loadOptionsMethod: 'getLeadFilterOperators',
+									loadOptionsDependsOn: ['field'],
+								},
 								default: '',
-								placeholder: 'Equals To',
 							},
 							{
-								displayName: 'Value',
-								name: 'value',
+								displayName: 'Value (Text)',
+								name: 'valueText',
 								type: 'string',
 								default: '',
+								displayOptions: {
+									show: {
+										operator: valueOperators,
+									},
+								},
+							},
+							{
+								displayName: 'Value (Date)',
+								name: 'valueDate',
+								type: 'dateTime',
+								default: '',
+								displayOptions: {
+									show: {
+										operator: dateOperators.filter((op) => !noValueOperators.includes(op)),
+									},
+								},
+							},
+							{
+								displayName: 'Value (Select)',
+								name: 'valueSelect',
+								type: 'options',
+								typeOptions: {
+									loadOptionsMethod: 'getLeadFilterFieldOptions',
+									loadOptionsDependsOn: ['field'],
+								},
+								default: '',
+								description: 'Use for select fields; for text/date fields use the other value inputs',
+								displayOptions: {
+									show: {
+										operator: valueOperators,
+									},
+								},
 							},
 						],
 					},
@@ -570,64 +728,6 @@ export class AdhubApp implements INodeType {
 					},
 				},
 				description: 'Filter rules for the list query',
-			},
-			{
-				displayName: 'Sort By',
-				name: 'leadListSortPreset',
-				type: 'options',
-				options: [
-					{ name: 'Activity - Newest First', value: 'activity_desc' },
-					{ name: 'Activity - Oldest First', value: 'activity_asc' },
-					{ name: 'Date - Newest First', value: 'date_desc' },
-					{ name: 'Date - Oldest First', value: 'date_asc' },
-					{ name: 'Name - A to Z', value: 'name_asc' },
-					{ name: 'Name - Z to A', value: 'name_desc' },
-					{ name: 'Custom', value: 'custom' },
-				],
-				default: 'activity_desc',
-				displayOptions: {
-					show: {
-						resource: ['leads'],
-						operation: ['listLeads'],
-						leadListBodyType: ['form'],
-					},
-				},
-				description: 'Sorting preset',
-			},
-			{
-				displayName: 'Sort By',
-				name: 'leadListSortBy',
-				type: 'string',
-				default: '',
-				displayOptions: {
-					show: {
-						resource: ['leads'],
-						operation: ['listLeads'],
-						leadListBodyType: ['form'],
-						leadListSortPreset: ['custom'],
-					},
-				},
-				description: 'Field name to sort by (for example, name)',
-			},
-			{
-				displayName: 'Sort Direction',
-				name: 'leadListSortDir',
-				type: 'options',
-				options: [
-					{ name: 'Unset', value: '' },
-					{ name: 'Ascending', value: 'asc' },
-					{ name: 'Descending', value: 'desc' },
-				],
-				default: '',
-				displayOptions: {
-					show: {
-						resource: ['leads'],
-						operation: ['listLeads'],
-						leadListBodyType: ['form'],
-						leadListSortPreset: ['custom'],
-					},
-				},
-				description: 'Sort direction',
 			},
 			{
 				displayName: 'Bulk Create Body (JSON)',
@@ -1402,7 +1502,418 @@ export class AdhubApp implements INodeType {
 					},
 				},
 			},
+			{
+				displayName: 'Body Type',
+				name: 'taskBodyType',
+				type: 'options',
+				options: [
+					{ name: 'Form', value: 'form' },
+					{ name: 'JSON', value: 'json' },
+				],
+				default: 'form',
+				displayOptions: {
+					show: {
+						resource: ['tasks'],
+						operation: ['createTask', 'updateTask'],
+					},
+				},
+			},
+			{
+				displayName: 'Body (JSON)',
+				name: 'taskBody',
+				type: 'string',
+				default: '',
+				placeholder: '{"lead_id":"abc123","title":"Follow up","type":"email","due_date":"2026-03-25T09:18:49","due_time":"09:18","notes":"Call notes"}',
+				description: 'Request body as a JSON object',
+				displayOptions: {
+					show: {
+						resource: ['tasks'],
+						operation: ['createTask', 'updateTask'],
+						taskBodyType: ['json'],
+					},
+				},
+			},
+			{
+				displayName: 'Lead ID',
+				name: 'taskLeadId',
+				type: 'string',
+				default: '',
+				required: true,
+				displayOptions: {
+					show: {
+						resource: ['tasks'],
+						operation: ['createTask'],
+						taskBodyType: ['form'],
+					},
+				},
+				description: 'Lead identifier for the task',
+			},
+			{
+				displayName: 'Title',
+				name: 'taskTitle',
+				type: 'string',
+				default: '',
+				required: true,
+				displayOptions: {
+					show: {
+						resource: ['tasks'],
+						operation: ['createTask', 'updateTask'],
+						taskBodyType: ['form'],
+					},
+				},
+				description: 'Task title',
+			},
+			{
+				displayName: 'Type',
+				name: 'taskType',
+				type: 'options',
+				options: [
+					{ name: 'Call', value: 'call' },
+					{ name: 'Email', value: 'email' },
+					{ name: 'Meeting', value: 'meeting' },
+					{ name: 'Other', value: 'other' },
+				],
+				default: 'other',
+				required: true,
+				displayOptions: {
+					show: {
+						resource: ['tasks'],
+						operation: ['createTask', 'updateTask'],
+						taskBodyType: ['form'],
+					},
+				},
+				description: 'Task type',
+			},
+			{
+				displayName: 'Due Date',
+				name: 'taskDueDate',
+				type: 'string',
+				default: '',
+				placeholder: '2026-03-25T09:18:49',
+				displayOptions: {
+					show: {
+						resource: ['tasks'],
+						operation: ['createTask', 'updateTask'],
+						taskBodyType: ['form'],
+					},
+				},
+				description: 'Due date in ISO 8601 format',
+			},
+			{
+				displayName: 'Due Time',
+				name: 'taskDueTime',
+				type: 'string',
+				default: '',
+				placeholder: '09:18',
+				displayOptions: {
+					show: {
+						resource: ['tasks'],
+						operation: ['createTask', 'updateTask'],
+						taskBodyType: ['form'],
+					},
+				},
+				description: 'Due time in HH:mm format',
+			},
+			{
+				displayName: 'Notes',
+				name: 'taskNotes',
+				type: 'string',
+				default: '',
+				displayOptions: {
+					show: {
+						resource: ['tasks'],
+						operation: ['createTask', 'updateTask'],
+						taskBodyType: ['form'],
+					},
+				},
+				description: 'Task notes',
+			},
+			{
+				displayName: 'Version',
+				name: 'taskVersion',
+				type: 'number',
+				default: 0,
+				displayOptions: {
+					show: {
+						resource: ['tasks'],
+						operation: ['updateTask', 'completeTask'],
+						taskBodyType: ['form'],
+					},
+				},
+				description: 'Task version for optimistic locking',
+			},
+			{
+				displayName: 'Task IDs',
+				name: 'taskIds',
+				type: 'string',
+				default: '',
+				placeholder: 'task1,task2,task3',
+				displayOptions: {
+					show: {
+						resource: ['tasks'],
+						operation: ['bulkCompleteTasks', 'bulkDeleteTasks'],
+					},
+				},
+				description: 'Comma-separated list of task IDs',
+			},
+			{
+				displayName: 'Body Type',
+				name: 'taskListBodyType',
+				type: 'options',
+				options: [
+					{ name: 'Form', value: 'form' },
+					{ name: 'JSON', value: 'json' },
+				],
+				default: 'json',
+				displayOptions: {
+					show: {
+						resource: ['tasks'],
+						operation: ['listTasks'],
+					},
+				},
+			},
+			{
+				displayName: 'Body (JSON)',
+				name: 'taskListBody',
+				type: 'string',
+				default: '',
+				placeholder: '{"per_page":50,"page":1,"search":"follow","status":"scheduled","sort_by":"due_date","sort_dir":"asc"}',
+				description: 'Request body as a JSON object',
+				displayOptions: {
+					show: {
+						resource: ['tasks'],
+						operation: ['listTasks'],
+						taskListBodyType: ['json'],
+					},
+				},
+			},
+			{
+				displayName: 'Per Page',
+				name: 'taskListPerPage',
+				type: 'number',
+				typeOptions: {
+					minValue: 0,
+					maxValue: 200,
+				},
+				default: 0,
+				displayOptions: {
+					show: {
+						resource: ['tasks'],
+						operation: ['listTasks'],
+						taskListBodyType: ['form'],
+					},
+				},
+				description: 'Number of tasks per page. Set 0 to omit.',
+			},
+			{
+				displayName: 'Page',
+				name: 'taskListPage',
+				type: 'number',
+				typeOptions: {
+					minValue: 0,
+				},
+				default: 0,
+				displayOptions: {
+					show: {
+						resource: ['tasks'],
+						operation: ['listTasks'],
+						taskListBodyType: ['form'],
+					},
+				},
+				description: 'Page number. Set 0 to omit.',
+			},
+			{
+				displayName: 'Search',
+				name: 'taskListSearch',
+				type: 'string',
+				default: '',
+				displayOptions: {
+					show: {
+						resource: ['tasks'],
+						operation: ['listTasks'],
+						taskListBodyType: ['form'],
+					},
+				},
+				description: 'Search term',
+			},
+			{
+				displayName: 'Status',
+				name: 'taskListStatus',
+				type: 'options',
+				options: [
+					{ name: 'Completed', value: 'completed' },
+					{ name: 'Scheduled', value: 'scheduled' },
+				],
+				default: 'scheduled',
+				displayOptions: {
+					show: {
+						resource: ['tasks'],
+						operation: ['listTasks'],
+						taskListBodyType: ['form'],
+					},
+				},
+			},
+			{
+				displayName: 'Filter Mode',
+				name: 'taskListFilterMode',
+				type: 'options',
+				options: [
+					{ name: 'AND', value: 'and' },
+					{ name: 'OR', value: 'or' },
+				],
+				default: 'and',
+				displayOptions: {
+					show: {
+						resource: ['tasks'],
+						operation: ['listTasks'],
+						taskListBodyType: ['form'],
+					},
+				},
+				description: 'How filter rules are combined',
+			},
+			{
+				displayName: 'Filter Rules',
+				name: 'taskListFilterRules',
+				type: 'fixedCollection',
+				typeOptions: {
+					multipleValues: true,
+				},
+				default: {},
+				placeholder: 'Add filter rule',
+				options: [
+					{
+						name: 'values',
+						displayName: 'Rule',
+						values: [
+							{
+								displayName: 'Field',
+								name: 'field',
+								type: 'options',
+								typeOptions: {
+									loadOptionsMethod: 'getTaskFilterFields',
+								},
+								default: '',
+							},
+							{
+								displayName: 'Operator',
+								name: 'operator',
+								type: 'options',
+								typeOptions: {
+									loadOptionsMethod: 'getTaskFilterOperators',
+									loadOptionsDependsOn: ['field'],
+								},
+								default: '',
+							},
+							{
+								displayName: 'Value (Text)',
+								name: 'valueText',
+								type: 'string',
+								default: '',
+								displayOptions: {
+									show: {
+										operator: valueOperators,
+									},
+								},
+							},
+							{
+								displayName: 'Value (Date)',
+								name: 'valueDate',
+								type: 'dateTime',
+								default: '',
+								displayOptions: {
+									show: {
+										operator: dateOperators.filter((op) => !noValueOperators.includes(op)),
+									},
+								},
+							},
+							{
+								displayName: 'Value (Select)',
+								name: 'valueSelect',
+								type: 'options',
+								typeOptions: {
+									loadOptionsMethod: 'getTaskFilterFieldOptions',
+									loadOptionsDependsOn: ['field'],
+								},
+								default: '',
+								description: 'Use for select fields; for text/date fields use the other value inputs',
+								displayOptions: {
+									show: {
+										operator: valueOperators,
+									},
+								},
+							},
+						],
+					},
+				],
+				displayOptions: {
+					show: {
+						resource: ['tasks'],
+						operation: ['listTasks'],
+						taskListBodyType: ['form'],
+					},
+				},
+				description: 'Filter rules for the list query',
+			},
 		],
+	};
+
+	methods = {
+		loadOptions: {
+			async getLeadFilterFields(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+				const fields = await fetchQueryFields(this, 'lead.list');
+				return fields
+					.filter((field) => field.key)
+					.map((field) => ({
+						name: field.label ?? field.key ?? '',
+						value: field.key ?? '',
+						description: field.type ? `Type: ${field.type}` : undefined,
+					}));
+			},
+			async getTaskFilterFields(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+				const fields = await fetchQueryFields(this, 'task.list');
+				return fields
+					.filter((field) => field.key)
+					.map((field) => ({
+						name: field.label ?? field.key ?? '',
+						value: field.key ?? '',
+						description: field.type ? `Type: ${field.type}` : undefined,
+					}));
+			},
+			async getLeadFilterOperators(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+				const fieldKey = this.getCurrentNodeParameter('field') as string;
+				if (!fieldKey) return [];
+				const fields = await fetchQueryFields(this, 'lead.list');
+				const match = fields.find((field) => field.key === fieldKey);
+				return (match?.operators ?? []).map((op) => ({ name: op, value: op }));
+			},
+			async getTaskFilterOperators(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+				const fieldKey = this.getCurrentNodeParameter('field') as string;
+				if (!fieldKey) return [];
+				const fields = await fetchQueryFields(this, 'task.list');
+				const match = fields.find((field) => field.key === fieldKey);
+				return (match?.operators ?? []).map((op) => ({ name: op, value: op }));
+			},
+			async getLeadFilterFieldOptions(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+				const fieldKey = this.getCurrentNodeParameter('field') as string;
+				if (!fieldKey) return [];
+				const fields = await fetchQueryFields(this, 'lead.list');
+				const match = fields.find((field) => field.key === fieldKey);
+				return (match?.options ?? []).map((opt) => ({
+					name: opt.label ?? opt.value ?? '',
+					value: opt.value ?? '',
+				}));
+			},
+			async getTaskFilterFieldOptions(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+				const fieldKey = this.getCurrentNodeParameter('field') as string;
+				if (!fieldKey) return [];
+				const fields = await fetchQueryFields(this, 'task.list');
+				const match = fields.find((field) => field.key === fieldKey);
+				return (match?.options ?? []).map((opt) => ({
+					name: opt.label ?? opt.value ?? '',
+					value: opt.value ?? '',
+				}));
+			},
+		},
 	};
 
 	async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
@@ -1437,6 +1948,9 @@ export class AdhubApp implements INodeType {
 					break;
 				case 'leadCustomFields':
 					returnData.push(await handleLeadCustomFields(this, itemIndex, operation, apiToken));
+					break;
+				case 'tasks':
+					returnData.push(await handleTasks(this, itemIndex, operation, apiToken));
 					break;
 				default:
 					throw new NodeOperationError(this.getNode(), `Unsupported resource: ${resource}`);

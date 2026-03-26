@@ -171,7 +171,7 @@ Filter Rules:
 ```json
 {
 	"filter": {
-		"mode": "and",
+		"mode": "AND",
 		"rules": [
 			{
 				"field": "lead.status",
@@ -188,7 +188,7 @@ Filter Rules:
 ```json
 {
 	"filter": {
-		"mode": "and",
+		"mode": "AND",
 		"rules": [
 			{
 				"field": "lead.status",
@@ -215,7 +215,7 @@ Filter Rules:
 ```json
 {
 	"filter": {
-		"mode": "or",
+		"mode": "OR",
 		"rules": [
 			{
 				"field": "lead.status",
@@ -240,7 +240,7 @@ Filter Rules:
 	"page": 1,
 	"search": "john",
 	"filter": {
-		"mode": "and",
+		"mode": "AND",
 		"rules": [
 			{
 				"field": "lead.status",

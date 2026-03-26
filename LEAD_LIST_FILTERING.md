@@ -234,7 +234,7 @@ When using the n8n node with `Body Type` set to `JSON`, you can provide the comp
 	"page": 1,
 	"search": "john",
 	"filter": {
-		"mode": "and",
+		"mode": "AND",
 		"rules": [
 			{
 				"field": "lead.status",
