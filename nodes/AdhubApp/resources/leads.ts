@@ -33,6 +33,17 @@ async function handleLeads(
 	const leadAdditionalFieldsRaw = ctx.getNodeParameter('leadAdditionalFields', itemIndex, '') as string;
 	const leadTimelineLimit = ctx.getNodeParameter('leadTimelineLimit', itemIndex, 0) as number;
 	const leadEntriesLimit = ctx.getNodeParameter('leadEntriesLimit', itemIndex, 0) as number;
+	const leadListBodyType = ctx.getNodeParameter('leadListBodyType', itemIndex, 'json') as string;
+	const leadListPerPage = ctx.getNodeParameter('leadListPerPage', itemIndex, 0) as number;
+	const leadListPage = ctx.getNodeParameter('leadListPage', itemIndex, 0) as number;
+	const leadListSearch = ctx.getNodeParameter('leadListSearch', itemIndex, '') as string;
+	const leadListFilterMode = ctx.getNodeParameter('leadListFilterMode', itemIndex, 'and') as string;
+	const leadListFilterRulesParam = ctx.getNodeParameter('leadListFilterRules', itemIndex, {}) as {
+		values?: Array<{ field?: string; operator?: string; value?: string }>;
+	};
+	const leadListSortPreset = ctx.getNodeParameter('leadListSortPreset', itemIndex, '') as string;
+	const leadListSortBy = ctx.getNodeParameter('leadListSortBy', itemIndex, '') as string;
+	const leadListSortDir = ctx.getNodeParameter('leadListSortDir', itemIndex, '') as string;
 	const bulkCreateBodyRaw = ctx.getNodeParameter('bulkCreateBody', itemIndex, '') as string;
 	const bulkDeleteBodyRaw = ctx.getNodeParameter('bulkDeleteBody', itemIndex, '') as string;
 	const bulkUpdateFieldsBodyRaw = ctx.getNodeParameter('bulkUpdateFieldsBody', itemIndex, '') as string;
@@ -164,6 +175,60 @@ async function handleLeads(
 			body = formBody;
 		} else {
 			body = parseJson(bodyRaw, 'Body');
+		}
+	}
+
+	if (operation === 'listLeads') {
+		if (leadListBodyType === 'form') {
+			const listBody: JsonRecord = {};
+			if (leadListPerPage) listBody.per_page = leadListPerPage;
+			if (leadListPage) listBody.page = leadListPage;
+			if (leadListSearch) listBody.search = leadListSearch;
+			const filterRules = (leadListFilterRulesParam?.values ?? [])
+				.map((rule) => ({
+					field: (rule?.field ?? '').toString().trim(),
+					operator: (rule?.operator ?? '').toString().trim(),
+					value: (rule?.value ?? '').toString().trim(),
+				}))
+				.filter((rule) => rule.field.length > 0 && rule.operator.length > 0)
+				.map((rule) =>
+					rule.value.length > 0
+						? rule
+						: { field: rule.field, operator: rule.operator },
+				);
+			if (filterRules.length) {
+				listBody.filter = {
+					mode: leadListFilterMode || 'and',
+					rules: filterRules,
+				};
+			}
+			const sortPresets: Record<string, { sort_by: string; sort_dir: string }> = {
+				activity_desc: { sort_by: 'activity', sort_dir: 'desc' },
+				activity_asc: { sort_by: 'activity', sort_dir: 'asc' },
+				date_desc: { sort_by: 'date', sort_dir: 'desc' },
+				date_asc: { sort_by: 'date', sort_dir: 'asc' },
+				name_asc: { sort_by: 'name', sort_dir: 'asc' },
+				name_desc: { sort_by: 'name', sort_dir: 'desc' },
+			};
+			if (leadListSortPreset && leadListSortPreset !== 'custom') {
+				const preset = sortPresets[leadListSortPreset];
+				if (preset) {
+					listBody.sort_by = preset.sort_by;
+					listBody.sort_dir = preset.sort_dir;
+				}
+			} else {
+				if (leadListSortBy) listBody.sort_by = leadListSortBy;
+				if (leadListSortDir) listBody.sort_dir = leadListSortDir;
+			}
+			body = listBody;
+		} else {
+			const listBody: JsonRecord = (body ?? {}) as JsonRecord;
+			if (leadListPerPage) listBody.per_page = listBody.per_page ?? leadListPerPage;
+			if (leadListPage) listBody.page = listBody.page ?? leadListPage;
+			if (leadListSearch) listBody.search = listBody.search ?? leadListSearch;
+			if (leadListSortBy) listBody.sort_by = listBody.sort_by ?? leadListSortBy;
+			if (leadListSortDir) listBody.sort_dir = listBody.sort_dir ?? leadListSortDir;
+			body = listBody;
 		}
 	}
 

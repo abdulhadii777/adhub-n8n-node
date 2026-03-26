@@ -7,7 +7,7 @@ An n8n community node for managing Adhub leads, lead sources, lead statuses, lea
 - Lead Sources: list, create, get, update, delete
 - Lead Statuses: list, create, get, update, delete
 - Lead Tags: list, create, get, update, delete
-- Leads: list, create, get, update, delete
+- Leads: list, create, get, update, delete (with advanced filtering)
 - Lead extras: query fields, timeline, entries
 - Lead Activities: list types, list, create, get, update, delete
 - Lead Custom Fields: list, create, get, update, delete
@@ -33,6 +33,7 @@ Create credentials named `Adhub App API` in n8n and provide your API token.
 ## Operations
 
 Resource: Lead Source
+
 - List
 - Create
 - Get
@@ -40,6 +41,7 @@ Resource: Lead Source
 - Delete
 
 Resource: Lead Status
+
 - List
 - Create
 - Get
@@ -47,6 +49,7 @@ Resource: Lead Status
 - Delete
 
 Resource: Lead Tag
+
 - List
 - Create
 - Get
@@ -54,6 +57,7 @@ Resource: Lead Tag
 - Delete
 
 Resource: Lead
+
 - List
 - Create
 - Get
@@ -64,6 +68,7 @@ Resource: Lead
 - Entries
 
 Resource: Lead Activity
+
 - List Types
 - List
 - Create
@@ -72,6 +77,7 @@ Resource: Lead Activity
 - Delete
 
 Resource: Lead Custom Field
+
 - List
 - Create
 - Get
@@ -82,6 +88,7 @@ Resource: Lead Custom Field
 
 - For lead creation and update you can send either form fields or a JSON body.
 - When using form fields, Additional Fields supports a JSON object with custom keys.
+- For lead list filtering, see [LEAD_LIST_FILTERING.md](LEAD_LIST_FILTERING.md) for detailed documentation.
 
 ## Build
 

@@ -428,18 +428,206 @@ export class AdhubApp implements INodeType {
 				},
 			},
 			{
-				displayName: 'Body (JSON)',
-				name: 'body',
-				type: 'string',
-				default: '',
-				placeholder: '{"per_page":50,"page":1}',
-				description: 'Request body as a JSON object',
+				displayName: 'Body Type',
+				name: 'leadListBodyType',
+				type: 'options',
+				options: [
+					{ name: 'Form', value: 'form' },
+					{ name: 'JSON', value: 'json' },
+				],
+				default: 'json',
 				displayOptions: {
 					show: {
 						resource: ['leads'],
 						operation: ['listLeads'],
 					},
 				},
+			},
+			{
+				displayName: 'Body (JSON)',
+				name: 'body',
+				type: 'string',
+				default: '',
+				placeholder:
+					'{"per_page":50,"page":2,"search":"john","filter":{"mode":"and","rules":[{"field":"lead.status","operator":"Equals To","value":"New"}]},"sort_by":"name","sort_dir":"asc"}',
+				description: 'Request body as a JSON object',
+				displayOptions: {
+					show: {
+						resource: ['leads'],
+						operation: ['listLeads'],
+						leadListBodyType: ['json'],
+					},
+				},
+			},
+			{
+				displayName: 'Per Page',
+				name: 'leadListPerPage',
+				type: 'number',
+				typeOptions: {
+					minValue: 0,
+					maxValue: 200,
+				},
+				default: 0,
+				displayOptions: {
+					show: {
+						resource: ['leads'],
+						operation: ['listLeads'],
+						leadListBodyType: ['form'],
+					},
+				},
+				description: 'Number of leads per page. Set 0 to omit.',
+			},
+			{
+				displayName: 'Page',
+				name: 'leadListPage',
+				type: 'number',
+				typeOptions: {
+					minValue: 0,
+				},
+				default: 0,
+				displayOptions: {
+					show: {
+						resource: ['leads'],
+						operation: ['listLeads'],
+						leadListBodyType: ['form'],
+					},
+				},
+				description: 'Page number. Set 0 to omit.',
+			},
+			{
+				displayName: 'Search',
+				name: 'leadListSearch',
+				type: 'string',
+				default: '',
+				displayOptions: {
+					show: {
+						resource: ['leads'],
+						operation: ['listLeads'],
+						leadListBodyType: ['form'],
+					},
+				},
+				description: 'Search term to filter leads',
+			},
+			{
+				displayName: 'Filter Mode',
+				name: 'leadListFilterMode',
+				type: 'options',
+				options: [
+					{ name: 'And', value: 'and' },
+					{ name: 'Or', value: 'or' },
+				],
+				default: 'and',
+				displayOptions: {
+					show: {
+						resource: ['leads'],
+						operation: ['listLeads'],
+						leadListBodyType: ['form'],
+					},
+				},
+				description: 'How filter rules are combined',
+			},
+			{
+				displayName: 'Filter Rules',
+				name: 'leadListFilterRules',
+				type: 'fixedCollection',
+				typeOptions: {
+					multipleValues: true,
+				},
+				default: {},
+				placeholder: 'Add filter rule',
+				options: [
+					{
+						name: 'values',
+						displayName: 'Rule',
+						values: [
+							{
+								displayName: 'Field',
+								name: 'field',
+								type: 'string',
+								default: '',
+							},
+							{
+								displayName: 'Operator',
+								name: 'operator',
+								type: 'string',
+								default: '',
+								placeholder: 'Equals To',
+							},
+							{
+								displayName: 'Value',
+								name: 'value',
+								type: 'string',
+								default: '',
+							},
+						],
+					},
+				],
+				displayOptions: {
+					show: {
+						resource: ['leads'],
+						operation: ['listLeads'],
+						leadListBodyType: ['form'],
+					},
+				},
+				description: 'Filter rules for the list query',
+			},
+			{
+				displayName: 'Sort By',
+				name: 'leadListSortPreset',
+				type: 'options',
+				options: [
+					{ name: 'Activity - Newest First', value: 'activity_desc' },
+					{ name: 'Activity - Oldest First', value: 'activity_asc' },
+					{ name: 'Date - Newest First', value: 'date_desc' },
+					{ name: 'Date - Oldest First', value: 'date_asc' },
+					{ name: 'Name - A to Z', value: 'name_asc' },
+					{ name: 'Name - Z to A', value: 'name_desc' },
+					{ name: 'Custom', value: 'custom' },
+				],
+				default: 'activity_desc',
+				displayOptions: {
+					show: {
+						resource: ['leads'],
+						operation: ['listLeads'],
+						leadListBodyType: ['form'],
+					},
+				},
+				description: 'Sorting preset',
+			},
+			{
+				displayName: 'Sort By',
+				name: 'leadListSortBy',
+				type: 'string',
+				default: '',
+				displayOptions: {
+					show: {
+						resource: ['leads'],
+						operation: ['listLeads'],
+						leadListBodyType: ['form'],
+						leadListSortPreset: ['custom'],
+					},
+				},
+				description: 'Field name to sort by (for example, name)',
+			},
+			{
+				displayName: 'Sort Direction',
+				name: 'leadListSortDir',
+				type: 'options',
+				options: [
+					{ name: 'Unset', value: '' },
+					{ name: 'Ascending', value: 'asc' },
+					{ name: 'Descending', value: 'desc' },
+				],
+				default: '',
+				displayOptions: {
+					show: {
+						resource: ['leads'],
+						operation: ['listLeads'],
+						leadListBodyType: ['form'],
+						leadListSortPreset: ['custom'],
+					},
+				},
+				description: 'Sort direction',
 			},
 			{
 				displayName: 'Bulk Create Body (JSON)',
