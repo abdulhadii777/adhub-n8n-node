@@ -8,9 +8,9 @@ async function handleLeads(
 	operation: string,
 	apiToken: string,
 ): Promise<INodeExecutionData> {
-	const normalizeFilterMode = (mode: string): 'and' | 'or' => {
+	const normalizeFilterMode = (mode: string): 'AND' | 'OR' => {
 		const normalized = (mode ?? '').toString().trim().toLowerCase();
-		return normalized === 'or' ? 'or' : 'and';
+		return normalized === 'or' ? 'OR' : 'AND';
 	};
 
 	const leadId = ctx.getNodeParameter('leadId', itemIndex, '') as string;
@@ -203,18 +203,24 @@ async function handleLeads(
 				'Last Month',
 				'This Year',
 			]);
+			const resolveFilterValue = (rule: {
+				valueSelect?: string;
+				valueDate?: string;
+				valueText?: string;
+			}): string => {
+				const candidates = [rule?.valueSelect, rule?.valueDate, rule?.valueText];
+				for (const candidate of candidates) {
+					if (candidate === undefined || candidate === null) continue;
+					const trimmed = candidate.toString().trim();
+					if (trimmed.length > 0) return trimmed;
+				}
+				return '';
+			};
 			const filterRules = (leadListFilterRulesParam?.values ?? [])
 				.map((rule) => ({
 					field: (rule?.field ?? '').toString().trim(),
 					operator: (rule?.operator ?? '').toString().trim(),
-					value: (
-						rule?.valueSelect ??
-						rule?.valueDate ??
-						rule?.valueText ??
-						''
-					)
-						.toString()
-						.trim(),
+					value: resolveFilterValue(rule ?? {}),
 				}))
 				.filter((rule) => rule.field.length > 0 && rule.operator.length > 0)
 				.map((rule) => {

@@ -39,57 +39,30 @@ async function fetchQueryFields(
 		qs: { context } as JsonRecord,
 	});
 	const response = (await ctx.helpers.request(options)) as unknown;
+	const asList = (value: unknown): QueryField[] => {
+		if (!Array.isArray(value)) return [];
+		return value.flat() as QueryField[];
+	};
 	if (Array.isArray(response)) {
 		return response.flat() as QueryField[];
 	}
+	if (response && typeof response === 'object') {
+		const payload = response as JsonRecord;
+		const nestedData = payload.data as JsonRecord | QueryField[] | undefined;
+		const candidates = [
+			payload.data,
+			payload.fields,
+			payload.items,
+			(nestedData as JsonRecord | undefined)?.data,
+			(nestedData as JsonRecord | undefined)?.items,
+		];
+		for (const candidate of candidates) {
+			const list = asList(candidate);
+			if (list.length > 0) return list;
+		}
+	}
 	return [];
 }
-
-const noValueOperators = [
-	'Is Empty',
-	'Is Not Empty',
-	'Today',
-	'Yesterday',
-	'This Week',
-	'Last Week',
-	'This Month',
-	'Last Month',
-	'This Year',
-];
-
-const dateOperators = [
-	'Equals To',
-	'Before',
-	'After',
-	'On Or Before',
-	'On Or After',
-	'Between',
-	'Today',
-	'Yesterday',
-	'This Week',
-	'Last Week',
-	'This Month',
-	'Last Month',
-	'This Year',
-	'X Days Before',
-	'X Days After',
-];
-
-const valueOperators = [
-	'Equals To',
-	'Not Equals To',
-	'Contains',
-	'Does Not Contain',
-	'Starts With',
-	'Ends With',
-	'Before',
-	'After',
-	'On Or Before',
-	'On Or After',
-	'Between',
-	'X Days Before',
-	'X Days After',
-];
 
 export class AdhubApp implements INodeType {
 	description: INodeTypeDescription = {
@@ -661,61 +634,51 @@ export class AdhubApp implements INodeType {
 						displayName: 'Rule',
 						values: [
 							{
-								displayName: 'Field',
+								displayName: 'Field Name or ID',
 								name: 'field',
 								type: 'options',
+								default: '',
 								typeOptions: {
 									loadOptionsMethod: 'getLeadFilterFields',
 								},
-								default: '',
+								description:
+									'Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>',
 							},
 							{
-								displayName: 'Operator',
+								displayName: 'Operator Name or ID',
 								name: 'operator',
 								type: 'options',
+								default: '',
 								typeOptions: {
 									loadOptionsMethod: 'getLeadFilterOperators',
 									loadOptionsDependsOn: ['field'],
 								},
-								default: '',
-							},
-							{
-								displayName: 'Value (Text)',
-								name: 'valueText',
-								type: 'string',
-								default: '',
-								displayOptions: {
-									show: {
-										operator: valueOperators,
-									},
-								},
+								description:
+									'Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>',
 							},
 							{
 								displayName: 'Value (Date)',
 								name: 'valueDate',
 								type: 'dateTime',
 								default: '',
-								displayOptions: {
-									show: {
-										operator: dateOperators.filter((op) => !noValueOperators.includes(op)),
-									},
-								},
 							},
 							{
-								displayName: 'Value (Select)',
+								displayName: 'Value (Select) Name or ID',
 								name: 'valueSelect',
 								type: 'options',
+								default: '',
 								typeOptions: {
 									loadOptionsMethod: 'getLeadFilterFieldOptions',
 									loadOptionsDependsOn: ['field'],
 								},
+								description:
+									'Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>',
+							},
+							{
+								displayName: 'Value (Text)',
+								name: 'valueText',
+								type: 'string',
 								default: '',
-								description: 'Use for select fields; for text/date fields use the other value inputs',
-								displayOptions: {
-									show: {
-										operator: valueOperators,
-									},
-								},
 							},
 						],
 					},
@@ -1786,61 +1749,51 @@ export class AdhubApp implements INodeType {
 						displayName: 'Rule',
 						values: [
 							{
-								displayName: 'Field',
+								displayName: 'Field Name or ID',
 								name: 'field',
 								type: 'options',
+								default: '',
 								typeOptions: {
 									loadOptionsMethod: 'getTaskFilterFields',
 								},
-								default: '',
+								description:
+									'Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>',
 							},
 							{
-								displayName: 'Operator',
+								displayName: 'Operator Name or ID',
 								name: 'operator',
 								type: 'options',
+								default: '',
 								typeOptions: {
 									loadOptionsMethod: 'getTaskFilterOperators',
 									loadOptionsDependsOn: ['field'],
 								},
-								default: '',
-							},
-							{
-								displayName: 'Value (Text)',
-								name: 'valueText',
-								type: 'string',
-								default: '',
-								displayOptions: {
-									show: {
-										operator: valueOperators,
-									},
-								},
+								description:
+									'Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>',
 							},
 							{
 								displayName: 'Value (Date)',
 								name: 'valueDate',
 								type: 'dateTime',
 								default: '',
-								displayOptions: {
-									show: {
-										operator: dateOperators.filter((op) => !noValueOperators.includes(op)),
-									},
-								},
 							},
 							{
-								displayName: 'Value (Select)',
+								displayName: 'Value (Select) Name or ID',
 								name: 'valueSelect',
 								type: 'options',
+								default: '',
 								typeOptions: {
 									loadOptionsMethod: 'getTaskFilterFieldOptions',
 									loadOptionsDependsOn: ['field'],
 								},
+								description:
+									'Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>',
+							},
+							{
+								displayName: 'Value (Text)',
+								name: 'valueText',
+								type: 'string',
 								default: '',
-								description: 'Use for select fields; for text/date fields use the other value inputs',
-								displayOptions: {
-									show: {
-										operator: valueOperators,
-									},
-								},
 							},
 						],
 					},
@@ -1880,38 +1833,66 @@ export class AdhubApp implements INodeType {
 					}));
 			},
 			async getLeadFilterOperators(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
-				const fieldKey = this.getCurrentNodeParameter('field') as string;
-				if (!fieldKey) return [];
+				const current = this.getCurrentNodeParameters() as JsonRecord | undefined;
+				const fieldKey = (this.getCurrentNodeParameter('field') ??
+					current?.field ??
+					'') as string;
+				const emptyOption = { name: 'Select', value: '' };
+				if (!fieldKey) return [emptyOption];
 				const fields = await fetchQueryFields(this, 'lead.list');
-				const match = fields.find((field) => field.key === fieldKey);
-				return (match?.operators ?? []).map((op) => ({ name: op, value: op }));
+				const normalized = fieldKey.toString().trim().toLowerCase();
+				const match = fields.find((field) => field.key === fieldKey) ??
+					fields.find((field) => (field.label ?? '').toString().trim().toLowerCase() === normalized);
+				const operators = (match?.operators ?? []).map((op) => ({ name: op, value: op }));
+				return [emptyOption, ...operators];
 			},
 			async getTaskFilterOperators(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
-				const fieldKey = this.getCurrentNodeParameter('field') as string;
-				if (!fieldKey) return [];
+				const current = this.getCurrentNodeParameters() as JsonRecord | undefined;
+				const fieldKey = (this.getCurrentNodeParameter('field') ??
+					current?.field ??
+					'') as string;
+				const emptyOption = { name: 'Select', value: '' };
+				if (!fieldKey) return [emptyOption];
 				const fields = await fetchQueryFields(this, 'task.list');
-				const match = fields.find((field) => field.key === fieldKey);
-				return (match?.operators ?? []).map((op) => ({ name: op, value: op }));
+				const normalized = fieldKey.toString().trim().toLowerCase();
+				const match = fields.find((field) => field.key === fieldKey) ??
+					fields.find((field) => (field.label ?? '').toString().trim().toLowerCase() === normalized);
+				const operators = (match?.operators ?? []).map((op) => ({ name: op, value: op }));
+				return [emptyOption, ...operators];
 			},
 			async getLeadFilterFieldOptions(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
-				const fieldKey = this.getCurrentNodeParameter('field') as string;
-				if (!fieldKey) return [];
+				const current = this.getCurrentNodeParameters() as JsonRecord | undefined;
+				const fieldKey = (this.getCurrentNodeParameter('field') ??
+					current?.field ??
+					'') as string;
+				const emptyOption = { name: 'Select', value: '' };
+				if (!fieldKey) return [emptyOption];
 				const fields = await fetchQueryFields(this, 'lead.list');
-				const match = fields.find((field) => field.key === fieldKey);
-				return (match?.options ?? []).map((opt) => ({
+				const normalized = fieldKey.toString().trim().toLowerCase();
+				const match = fields.find((field) => field.key === fieldKey) ??
+					fields.find((field) => (field.label ?? '').toString().trim().toLowerCase() === normalized);
+				const options = (match?.options ?? []).map((opt) => ({
 					name: opt.label ?? opt.value ?? '',
 					value: opt.value ?? '',
 				}));
+				return [emptyOption, ...options];
 			},
 			async getTaskFilterFieldOptions(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
-				const fieldKey = this.getCurrentNodeParameter('field') as string;
-				if (!fieldKey) return [];
+				const current = this.getCurrentNodeParameters() as JsonRecord | undefined;
+				const fieldKey = (this.getCurrentNodeParameter('field') ??
+					current?.field ??
+					'') as string;
+				const emptyOption = { name: 'Select', value: '' };
+				if (!fieldKey) return [emptyOption];
 				const fields = await fetchQueryFields(this, 'task.list');
-				const match = fields.find((field) => field.key === fieldKey);
-				return (match?.options ?? []).map((opt) => ({
+				const normalized = fieldKey.toString().trim().toLowerCase();
+				const match = fields.find((field) => field.key === fieldKey) ??
+					fields.find((field) => (field.label ?? '').toString().trim().toLowerCase() === normalized);
+				const options = (match?.options ?? []).map((opt) => ({
 					name: opt.label ?? opt.value ?? '',
 					value: opt.value ?? '',
 				}));
+				return [emptyOption, ...options];
 			},
 		},
 	};
